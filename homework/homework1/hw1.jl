@@ -146,6 +146,7 @@ md"""
 
 # ╔═╡ b6b65b94-edf0-11ea-3686-fbff0ff53d08
 function create_bar()
+	
 	return [zeros(40) ; ones(20) ; zeros(40)]
 end
 
@@ -173,7 +174,7 @@ md"""
 
 # ╔═╡ 9f1c6d04-ed6c-11ea-007b-75e7e780703d
 function matrix_to_vecvec(matrix)
-	return [col for col in eachcol(matrix)]
+	return [[matrix[i, j] for i in 1:size(matrix, 1)] for j in 1:size(matrix, 2)]
 end
 
 # ╔═╡ 70955aca-ed6e-11ea-2330-89b4d20b1795
@@ -218,7 +219,10 @@ md"""
 
 # ╔═╡ c680cb78-f09c-11ea-03e9-e900d2e2ddd3
 function mean_colors(image)
-	return sum(image) ./ length(image)
+	r = [p.r for p in image] |> mean
+	g = [p.g for p in image] |> mean
+	b = [p.b for p in image] |> mean
+	return r, g, b
 end
 
 # ╔═╡ f68d4a36-ee07-11ea-0832-0360530f102e
@@ -230,16 +234,17 @@ md"""
 # ╔═╡ f6991a50-ee07-11ea-0bc4-1d68eb028e6a
 begin
 	function quantize(x::Number)
-		return floor(10x) / 10
+		return floor(x * 10) / 10
 	end
 	
 	function quantize(color::AbstractRGB)
-		return mapc(ch -> quantize(ch), color)  
-			# mapc applies a function to each channel
+		# you will write me in a later exercise!
+		return RGB(quantize(color.r), quantize(color.g), quantize(color.b))
 	end
 	
 	function quantize(image::AbstractMatrix)
-		return quantize.(image)
+		# you will write me in a later exercise!
+		return map(c -> quantize(c), image)
 	end
 end
 
@@ -280,7 +285,7 @@ md"""
 
 # ╔═╡ 63e8d636-ee0b-11ea-173d-bd3327347d55
 function invert(color::AbstractRGB)
-	return mapc(ch -> 1 - ch, color)
+	return RGB(1 - color.r, 1 - color.g, 1 - color.b)
 end
 
 # ╔═╡ 2cc2f84e-ee0d-11ea-373b-e7ad3204bb00
@@ -320,11 +325,11 @@ begin
 	end
 	
 	function noisify(color::AbstractRGB, s)
-		return mapc(ch -> noisify(ch, s), color)
+		return RGB(map(c -> noisify(c, s), (color.r, color.g, color.b))...)
 	end
 	
 	function noisify(image::AbstractMatrix, s)
-		return noisify.(image, s)
+		return map(p -> noisify(p, s), image)
 	end
 end
 
@@ -389,7 +394,7 @@ mean_colors(philip)
 quantize(philip)
 
 # ╔═╡ 943103e2-ee0b-11ea-33aa-75a8a1529931
-philip_inverted = invert.(philip)
+philip_inverted = map(c -> invert(c), philip)
 
 # ╔═╡ ac15e0d0-ee0c-11ea-1eaf-d7f88b5df1d7
 noisify(philip, philip_noise)
@@ -494,7 +499,7 @@ md"""
 
 # ╔═╡ 807e5662-ee09-11ea-3005-21fdcc36b023
 function blur_1D(v, l)
-	return [extend.(Ref(v), i-l:i+l) |> mean for i in eachindex(v)]
+	return [[extend(v, j) for j in i-l:i+l] |> mean for i in 1:length(v)]
 end
 
 # ╔═╡ 808deca8-ee09-11ea-0ee3-1586fa1ce282
@@ -520,10 +525,10 @@ md"""
 """
 
 # ╔═╡ 468bf2aa-f0f2-11ea-06fb-c178b7e92d6f
-@bind l_box Slider(1:10, show_value = true)
+@bind l Slider(1:10, show_value = true)
 
 # ╔═╡ ca1ac5f4-ee1c-11ea-3d00-ff5268866f87
-blurred_v = blur_1D(v, l_box)
+blurred_v = blur_1D(v, l)
 
 # ╔═╡ 6c0727e0-f0f2-11ea-2190-1d144aff27f8
 colored_line(v)
@@ -548,7 +553,7 @@ Again, we need to take care about what happens if $v_{i -n }$ falls off the end 
 # ╔═╡ 28e20950-ee0c-11ea-0e0a-b5f2e570b56e
 function convolve_vector(v, k)
 	l = (length(k) - 1) ÷ 2
-	return [extend.(Ref(v), i-l:i+l)' * k for i in eachindex(v)]
+	return [[extend(v, j) for j in i-l:i+l]' * k for i in 1:length(v)]
 end
 
 # ╔═╡ 93284f92-ee12-11ea-0342-833b1a30625c
@@ -583,7 +588,7 @@ For simplicity you can take $\sigma=1$.
 function gaussian_kernel(n)
 	G(x) = exp(-x^2 / 2) / 2π
 	l = (n - 1) ÷ 2
-	k = G.(-l:l)
+	k = [G(x) for x in -l:l] 
 	return k ./ sum(k)
 end
 
@@ -644,7 +649,7 @@ md"""
 
 # ╔═╡ 7c2ec6c6-ee15-11ea-2d7d-0d9401a5e5d1
 function extend_mat(M::AbstractMatrix, i, j)
-	return M[myclamp(i, 1, size(M, 1)), myclamp(j, 1, size(M, 2))]
+	return M[clamp(i, 1, size(M, 1)), clamp(j, 1, size(M, 2))]
 end
 
 # ╔═╡ 9afc4dca-ee16-11ea-354f-1d827aaa61d2
@@ -790,9 +795,11 @@ For simplicity you can choose one of the "channels" (colours) in the image to ap
 # ╔═╡ 9eeb876c-ee15-11ea-1794-d3ea79f47b75
 function with_sobel_edge_detect(image)
 	Gᵪ = [1 0 -1; 2 0 -2; 1 0 -1]
-	Gᵧ = Gᵪ'
-	imᵪ, imᵧ = convolve_image(image, Gᵪ), convolve_image(image, Gᵧ)
-	return Gray.(sqrt.(imᵪ.^2 + imᵧ.^2)) 
+	Gᵧ = [1 2 1; 0 0 0; -1 -2 -1]
+	imᵪ = convolve_image(image, Gᵪ)
+	imᵧ = convolve_image(image, Gᵧ)
+	mag(x, y) = √(x^2 + y^2)
+	return [mag(imᵪ[i, j], imᵧ[i, j]) |> Gray for i in 1:size(image, 1), j in 1:size(image, 2)]
 end
 
 # ╔═╡ 5516c800-edee-11ea-12cf-3f8c082ef0ef
@@ -1450,7 +1457,7 @@ with_sobel_edge_detect(sobel_camera_image)
 # ╟─808deca8-ee09-11ea-0ee3-1586fa1ce282
 # ╟─809f5330-ee09-11ea-0e5b-415044b6ac1f
 # ╠═468bf2aa-f0f2-11ea-06fb-c178b7e92d6f
-# ╠═ca1ac5f4-ee1c-11ea-3d00-ff5268866f87
+# ╟─ca1ac5f4-ee1c-11ea-3d00-ff5268866f87
 # ╠═6c0727e0-f0f2-11ea-2190-1d144aff27f8
 # ╠═67774e26-f0f2-11ea-11ab-01d7077c6ee1
 # ╟─ea435e58-ee11-11ea-3785-01af8dd72360
