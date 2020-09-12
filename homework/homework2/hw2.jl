@@ -41,7 +41,7 @@ begin
 end
 
 # ╔═╡ e6b6760a-f37f-11ea-3ae1-65443ef5a81a
-md"_homework 2, version 2.1_"
+md"_homework 2, version 2_"
 
 # ╔═╡ 85cfbd10-f384-11ea-31dc-b5693630a4c5
 md"""
@@ -414,15 +414,13 @@ Return these two values in a tuple.
 # ╔═╡ 8ec27ef8-f320-11ea-2573-c97b7b908cb7
 ## returns lowest possible sum energy at pixel (i, j), and the column to jump to in row i+1.
 function least_energy(energies, i, j)
-	# base case
-	if i == size(energies, 1)
-	    return energies[i, j], 0 # no need for recursive computation in the base case!
-	end
-	
+	# base case: already at last row
+	i == size(energies, 1) && return energies[i, j], 0
+
 	# induction: combine results from recursive calls to `least_energy`
-	left, right = max(1, j - 1), min(size(energies, 2), j + 1)
-	min_energy, dir = findmin(map(k -> least_energy(energies, i + 1, k)[1], left:right))
-	return energies[i, j] + min_energy, j + dir - 2
+	l, r = max(1, j - 1), min(size(energies, 2), j + 1)
+	min_energy, dir = findmin(map(k -> least_energy(energies, i + 1, k)[1], l:r))
+	return energies[i, j] + min_energy, l + dir - 1
 end
 
 # ╔═╡ a7f3d9f8-f3bb-11ea-0c1a-55bbb8408f09
@@ -754,7 +752,7 @@ end
 
 # ╔═╡ d88bc272-f392-11ea-0efd-15e0e2b2cd4e
 if shrink_recursive
-	recursive_carved = shrink_n(pika, 3, recursive_seam)
+	recursive_carved = shrink_n(img, 3, recursive_seam)
 	md"Shrink by: $(@bind recursive_n Slider(1:3, show_value=true))"
 end
 
