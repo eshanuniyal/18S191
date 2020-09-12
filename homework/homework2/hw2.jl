@@ -41,7 +41,7 @@ begin
 end
 
 # ╔═╡ e6b6760a-f37f-11ea-3ae1-65443ef5a81a
-md"_homework 2, version 2.1_"
+md"_homework 2, version 2_"
 
 # ╔═╡ 85cfbd10-f384-11ea-31dc-b5693630a4c5
 md"""
@@ -414,15 +414,13 @@ Return these two values in a tuple.
 # ╔═╡ 8ec27ef8-f320-11ea-2573-c97b7b908cb7
 ## returns lowest possible sum energy at pixel (i, j), and the column to jump to in row i+1.
 function least_energy(energies, i, j)
-	# base case
-	if i == size(energies, 1)
-	    return energies[i, j], 0 # no need for recursive computation in the base case!
-	end
-	
+	# base case: already at last row
+	i == size(energies, 1) && return energies[i, j], 0
+
 	# induction: combine results from recursive calls to `least_energy`
-	left, right = max(1, j - 1), min(size(energies, 2), j + 1)
-	min_energy, dir = findmin(map(k -> least_energy(energies, i + 1, k)[1], left:right))
-	return energies[i, j] + min_energy, j + dir - 2
+	l, r = max(1, j - 1), min(size(energies, 2), j + 1)
+	min_energy, dir = findmin(map(k -> least_energy(energies, i + 1, k)[1], l:r))
+	return energies[i, j] + min_energy, l + dir - 1
 end
 
 # ╔═╡ a7f3d9f8-f3bb-11ea-0c1a-55bbb8408f09
@@ -460,8 +458,11 @@ This will give you the method used in the lecture to perform [exhaustive search 
 # ╔═╡ 85033040-f372-11ea-2c31-bb3147de3c0d
 function recursive_seam(energies, starting_pixel)
 	m, n = size(energies)
-	# Replace the following line with your code.
-	[rand(1:starting_pixel) for i=1:m]
+	seam = [starting_pixel]
+	for i in 1:n
+		push!(seam, least_energy(energies, i, seam[end])[2])
+	end
+	return seam
 end
 
 # ╔═╡ 1d55333c-f393-11ea-229a-5b1e9cabea6a
@@ -477,7 +478,7 @@ md"""
 
 # ╔═╡ 6d993a5c-f373-11ea-0dde-c94e3bbd1552
 exhaustive_observation = md"""
-<your answer here>
+The number of possible seams is $O(3^mn)$.
 """
 
 # ╔═╡ ea417c2a-f373-11ea-3bb0-b1b5754f2fac
@@ -512,20 +513,30 @@ You are expected to read and understand the [documentation on dictionaries](http
 
 # ╔═╡ b1d09bc8-f320-11ea-26bb-0101c9a204e2
 function memoized_least_energy(energies, i, j, memory)
-	m, n = size(energies)
-	
-	# Replace the following line with your code.
-	[starting_pixel for i=1:m]
+	# base case: reached bottom row
+	i == size(energies, 1) && return energies[i, j]
+	# base case: energy already known
+	(i, j) in keys(memory) && return memory[(i, j)]
+
+	# induction: combine results from recursive calls to `memoized_least_energy`
+	l, r = max(1, j - 1), min(size(energies, 2), j + 1)
+	memory[(i, j)] = energies[i, j] + minimum(map(k -> memoized_least_energy(energies, i + 1, k, memory), l:r))
+	return memory[(i, j)]
 end
 
 # ╔═╡ 3e8b0868-f3bd-11ea-0c15-011bbd6ac051
 function recursive_memoized_seam(energies, starting_pixel)
 	memory = Dict{Tuple{Int,Int}, Float64}() # location => least energy.
-	                                         # pass this every time you call memoized_least_energy.
+		# pass this every time you call memoized_least_energy.
 	m, n = size(energies)
-	
-	# Replace the following line with your code.
-	[rand(1:starting_pixel) for i=1:m]
+	seam = [starting_pixel]
+	for i in 2:m
+		j = seam[end]
+		l, r = max(1, j - 1), min(n, j + 1)
+		dir = findmin(map(k -> memoized_least_energy(energies, i, k, memory), l:r))[2]
+		push!(seam, l + dir - 1)
+	end
+	return seam
 end
 
 # ╔═╡ 4e3bcf88-f3c5-11ea-3ada-2ff9213647b7
@@ -654,7 +665,7 @@ end
 
 # ╔═╡ d88bc272-f392-11ea-0efd-15e0e2b2cd4e
 if shrink_recursive
-	recursive_carved = shrink_n(pika, 3, recursive_seam)
+	recursive_carved = shrink_n(img, 3, recursive_seam)
 	md"Shrink by: $(@bind recursive_n Slider(1:3, show_value=true))"
 end
 
@@ -665,7 +676,7 @@ end
 
 # ╔═╡ 4e3ef866-f3c5-11ea-3fb0-27d1ca9a9a3f
 if shrink_dict
-	dict_carved = shrink_n(img, 200, recursive_memoized_seam)
+	dict_carved = shrink_n(img[1:100, 1:100], 99, recursive_memoized_seam)
 	md"Shrink by: $(@bind dict_n Slider(1:200, show_value=true))"
 end
 
@@ -918,17 +929,17 @@ bigbreak
 # ╠═8ec27ef8-f320-11ea-2573-c97b7b908cb7
 # ╟─9f18efe2-f38e-11ea-0871-6d7760d0b2f6
 # ╟─a7f3d9f8-f3bb-11ea-0c1a-55bbb8408f09
-# ╟─fa8e2772-f3b6-11ea-30f7-699717693164
+# ╠═fa8e2772-f3b6-11ea-30f7-699717693164
 # ╟─18e0fd8a-f3bc-11ea-0713-fbf74d5fa41a
 # ╟─cbf29020-f3ba-11ea-2cb0-b92836f3d04b
 # ╟─8bc930f0-f372-11ea-06cb-79ced2834720
 # ╠═85033040-f372-11ea-2c31-bb3147de3c0d
-# ╠═1d55333c-f393-11ea-229a-5b1e9cabea6a
+# ╟─1d55333c-f393-11ea-229a-5b1e9cabea6a
 # ╠═d88bc272-f392-11ea-0efd-15e0e2b2cd4e
 # ╠═e66ef06a-f392-11ea-30ab-7160e7723a17
 # ╟─c572f6ce-f372-11ea-3c9a-e3a21384edca
 # ╠═6d993a5c-f373-11ea-0dde-c94e3bbd1552
-# ╠═ea417c2a-f373-11ea-3bb0-b1b5754f2fac
+# ╟─ea417c2a-f373-11ea-3bb0-b1b5754f2fac
 # ╟─56a7f954-f374-11ea-0391-f79b75195f4d
 # ╠═b1d09bc8-f320-11ea-26bb-0101c9a204e2
 # ╠═3e8b0868-f3bd-11ea-0c15-011bbd6ac051
@@ -954,7 +965,7 @@ bigbreak
 # ╟─0fbe2af6-f381-11ea-2f41-23cd1cf930d9
 # ╟─48089a00-f321-11ea-1479-e74ba71df067
 # ╟─6b4d6584-f3be-11ea-131d-e5bdefcc791b
-# ╟─437ba6ce-f37d-11ea-1010-5f6a6e282f9b
+# ╠═437ba6ce-f37d-11ea-1010-5f6a6e282f9b
 # ╟─ef88c388-f388-11ea-3828-ff4db4d1874e
 # ╟─ef26374a-f388-11ea-0b4e-67314a9a9094
 # ╟─6bdbcf4c-f321-11ea-0288-fb16ff1ec526
