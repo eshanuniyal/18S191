@@ -159,8 +159,8 @@ function remove_in_each_row_no_vcat(img, column_numbers)
 	for (i, j) in enumerate(column_numbers)
 		# EDIT THE FOLLOWING LINE and split it into two lines
 		# to avoid using `vcat`.
-		img′[i, 1:j-1] .= img[i, 1:j-1]  # inserting pixels before j'th pixel
-		img′[i, j:end] .= img[i, j+1:end]  # inserting pixels after j'th pixel
+		img′[i, 1:j-1] .= img[i, 1:j-1]
+		img′[i, j:end] .= img[i, j+1:end]
 	end
 	img′
 end
@@ -204,8 +204,8 @@ function remove_in_each_row_views(img, column_numbers)
 	for (i, j) in enumerate(column_numbers)
 		# EDIT THE FOLLOWING LINE and split it into two lines
 		# to avoid using `vcat`.
-		img′[i, 1:j-1] .= @view img[i, 1:j-1]  # copying pixels before j'th pixel
-		img′[i, j:end] .= @view img[i, j+1:end]  # copying pixels after j'th pixel
+		img′[i, 1:j-1] .= @view img[i, 1:j-1]
+		img′[i, j:end] .= @view img[i, j+1:end]
 	end
 	img′
 end
@@ -332,20 +332,15 @@ random_seam(m, n, i) = reduce((a, b) -> [a..., clamp(last(a) + rand(-1:1), 1, n)
 
 # ╔═╡ abf20aa0-f31b-11ea-2548-9bea4fab4c37
 function greedy_seam(energies, starting_pixel::Int)
-	m, n = size(energies)  # dimensions of matrix
-	# allocating seam array
-	seam = zeros(Int, m)
-	seam[1] = starting_pixel
-	
-	# iterating over rows
-	for r in 2:m
-		# indices of column to the left and right (subject to boundary conditions)
-		left, right = max(1, seam[r - 1] - 1), min(n, seam[r - 1] + 1)
-		# finding minimal energy index in next row
-		next_c = left + argmin(energies[r, left:right]) - 1
-		seam[r] = next_c  # updating seam
+	# you can delete the body of this function - it's just a placeholder.
+	# random_seam(size(energies)..., starting_pixel)
+	rₙ, cₙ = size(energies)
+	seam = [starting_pixel]
+	for r in 2:rₙ
+		left, right = max(1, seam[end] - 1), min(cₙ, seam[end] + 1)
+		next_c = left + findmin(energies[r, left:right])[2] - 1
+		push!(seam, next_c)
 	end
-	
 	return seam
 end
 
@@ -419,49 +414,15 @@ Return these two values in a tuple.
 # ╔═╡ 8ec27ef8-f320-11ea-2573-c97b7b908cb7
 ## returns lowest possible sum energy at pixel (i, j), and the column to jump to in row i+1.
 function least_energy(energies, i, j)
-	# base case: already at last row
-	i == size(energies, 1) && return energies[i, j], 0
-
-	# induction: combine results from recursive calls to `least_energy`
-	# finding indices of column to the left and right (subject to boundary conditions)
-	l, r = max(1, j - 1), min(size(energies, 2), j + 1)
-	
-	# storing min_energy found so far and associated column number
-	min_energy, col = typemax(Float64), 0
-	# iterating over possible columns
-	for k in l:r
-		# finding energy associated with column
-		energy, _ = least_energy(energies, i + 1, k)
-		# updating status variables as necessary
-		if energy < min_energy
-			min_energy, col = energy, k
-		end
+	# base case
+	if i == size(energies, 1)
+	    return energies[i, j], 0 # no need for recursive computation in the base case!
 	end
 	
-	# returning minimal energy sum and column to jump to
-	return energies[i, j] + min_energy, col
-	
-end
-
-# ╔═╡ dd1e7454-f7a2-11ea-096d-f7a45748f1c3
-## cleaner solution, slower than least_energy by a factor of 2
-function least_energy2(energies, i, j)  
-	# base case: already at last row
-	i == size(energies, 1) && return energies[i, j], 0
-
 	# induction: combine results from recursive calls to `least_energy`
-	# finding indices of column to the left and right (subject to boundary conditions)
-	l, r = max(1, j - 1), min(size(energies, 2), j + 1)
-	
-	# finding minimal energy of a path starting below and associated direction
-	
-	# own version of findmin that takes a function defined in Helper Functions
-	min_energy, dir = findmin(k -> least_energy2(energies, i + 1, k) |> first, l:r)
-
-	# more expensive, Base-supported implementation requires allocs with broadcasting:
-	# min_energy, dir = least_energy2.(Ref(energies), i + 1, l:r) .|> first |> findmin
-	# returning minimal energy sum and column to jump to
-	return energies[i, j] + min_energy, l + dir - 1	
+	left, right = max(1, j - 1), min(size(energies, 2), j + 1)
+	min_energy, dir = findmin(map(k -> least_energy(energies, i + 1, k)[1], left:right))
+	return energies[i, j] + min_energy, j + dir - 2
 end
 
 # ╔═╡ a7f3d9f8-f3bb-11ea-0c1a-55bbb8408f09
@@ -1132,8 +1093,8 @@ bigbreak
 # ╟─980b1104-f394-11ea-0948-21002f26ee25
 # ╟─9945ae78-f395-11ea-1d78-cf6ad19606c8
 # ╟─87efe4c2-f38d-11ea-39cc-bdfa11298317
-# ╠═f6571d86-f388-11ea-0390-05592acb9195
-# ╟─f626b222-f388-11ea-0d94-1736759b5f52
+# ╟─f6571d86-f388-11ea-0390-05592acb9195
+# ╠═f626b222-f388-11ea-0d94-1736759b5f52
 # ╟─52452d26-f36c-11ea-01a6-313114b4445d
 # ╠═2a98f268-f3b6-11ea-1eea-81c28256a19e
 # ╟─32e9a944-f3b6-11ea-0e82-1dff6c2eef8d
