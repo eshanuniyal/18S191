@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.11.12
+# v0.11.14
 
 using Markdown
 using InteractiveUtils
@@ -59,7 +59,7 @@ Feel free to ask questions!
 # ╔═╡ 33e43c7c-f381-11ea-3abc-c942327456b1
 # edit the code below to set your name and kerberos ID (i.e. email without @mit.edu)
 
-student = (name = "Jazzy Doe", kerberos_id = "jazz")
+student = (name = "Eshan Uniyal", kerberos_id = "N/A")
 
 # you might need to wait until all other cells in this notebook have completed running. 
 # scroll around the page to see what's up
@@ -159,7 +159,8 @@ function remove_in_each_row_no_vcat(img, column_numbers)
 	for (i, j) in enumerate(column_numbers)
 		# EDIT THE FOLLOWING LINE and split it into two lines
 		# to avoid using `vcat`.
-		img′[i, :] .= vcat(img[i, 1:j-1], img[i, j+1:end])
+		img′[i, 1:j-1] .= img[i, 1:j-1]
+		img′[i, j:end] .= img[i, j+1:end]
 	end
 	img′
 end
@@ -181,7 +182,7 @@ md"""
 
 # ╔═╡ e49235a4-f367-11ea-3913-f54a4a6b2d6b
 no_vcat_observation = md"""
-<Your answer here>
+The optimisation reduced the number of allocations from 1029 to 687. This reduction resulted from avoiding the `vcat` function, using which results in an extra allocation over each iteration in the `for` loop compared to just assigning the two sections of the row manually.
 """
 
 # ╔═╡ 837c43a4-f368-11ea-00a3-990a45cb0cbd
@@ -203,7 +204,8 @@ function remove_in_each_row_views(img, column_numbers)
 	for (i, j) in enumerate(column_numbers)
 		# EDIT THE FOLLOWING LINE and split it into two lines
 		# to avoid using `vcat`.
-		img′[i, :] .= vcat(img[i, 1:j-1], img[i, j+1:end])
+		img′[i, 1:j-1] .= @view img[i, 1:j-1]
+		img′[i, j:end] .= @view img[i, j+1:end]
 	end
 	img′
 end
@@ -238,7 +240,7 @@ Nice! If you did your optimizations right, you should be able to get down the es
 
 # ╔═╡ fd819dac-f368-11ea-33bb-17148387546a
 views_observation = md"""
-<your answer here>
+The optimisation reduced the number of allocations from 1029 to 3. This reduction resulted from using `@view` to ensure no new memory is allocated on the right-hand side of the assignment expressions in the `for` loop
 """
 
 # ╔═╡ 318a2256-f369-11ea-23a9-2f74c566549b
@@ -331,7 +333,15 @@ random_seam(m, n, i) = reduce((a, b) -> [a..., clamp(last(a) + rand(-1:1), 1, n)
 # ╔═╡ abf20aa0-f31b-11ea-2548-9bea4fab4c37
 function greedy_seam(energies, starting_pixel::Int)
 	# you can delete the body of this function - it's just a placeholder.
-	random_seam(size(energies)..., starting_pixel)
+	# random_seam(size(energies)..., starting_pixel)
+	rₙ, cₙ = size(energies)
+	seam = [starting_pixel]
+	for r in 2:rₙ
+		left, right = max(1, seam[end] - 1), min(cₙ, seam[end] + 1)
+		next_c = left + findmin(energies[r, left:right])[2] - 1
+		push!(seam, next_c)
+	end
+	return seam
 end
 
 # ╔═╡ 5430d772-f397-11ea-2ed8-03ee06d02a22
@@ -405,12 +415,14 @@ Return these two values in a tuple.
 ## returns lowest possible sum energy at pixel (i, j), and the column to jump to in row i+1.
 function least_energy(energies, i, j)
 	# base case
-	# if i == something
-	#    return energies[...] # no need for recursive computation in the base case!
-	# end
-	#
-	# induction
-	# combine results from recursive calls to `least_energy`.
+	if i == size(energies, 1)
+	    return energies[i, j], 0 # no need for recursive computation in the base case!
+	end
+	
+	# induction: combine results from recursive calls to `least_energy`
+	left, right = max(1, j - 1), min(size(energies, 2), j + 1)
+	min_energy, dir = findmin(map(k -> least_energy(energies, i + 1, k)[1], left:right))
+	return energies[i, j] + min_energy, j + dir - 2
 end
 
 # ╔═╡ a7f3d9f8-f3bb-11ea-0c1a-55bbb8408f09
@@ -896,7 +908,7 @@ bigbreak
 # ╟─9945ae78-f395-11ea-1d78-cf6ad19606c8
 # ╟─87efe4c2-f38d-11ea-39cc-bdfa11298317
 # ╟─f6571d86-f388-11ea-0390-05592acb9195
-# ╟─f626b222-f388-11ea-0d94-1736759b5f52
+# ╠═f626b222-f388-11ea-0d94-1736759b5f52
 # ╟─52452d26-f36c-11ea-01a6-313114b4445d
 # ╠═2a98f268-f3b6-11ea-1eea-81c28256a19e
 # ╟─32e9a944-f3b6-11ea-0e82-1dff6c2eef8d
