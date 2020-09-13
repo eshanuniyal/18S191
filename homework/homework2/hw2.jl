@@ -342,7 +342,7 @@ function greedy_seam(energies, starting_pixel::Int)
 		# indices of column to the left and right (subject to boundary conditions)
 		left, right = max(1, seam[r - 1] - 1), min(n, seam[r - 1] + 1)
 		# finding minimal energy index in next row
-		next_c = left + findmin(energies[r, left:right])[2] - 1
+		next_c = left + argmin(energies[r, left:right]) - 1
 		seam[r] = next_c  # updating seam
 	end
 	
@@ -419,6 +419,7 @@ Return these two values in a tuple.
 # ╔═╡ 8ec27ef8-f320-11ea-2573-c97b7b908cb7
 ## returns lowest possible sum energy at pixel (i, j), and the column to jump to in row i+1.
 function least_energy(energies, i, j)
+	println("$i, $j")
 	# base case: already at last row
 	i == size(energies, 1) && return energies[i, j], 0
 
@@ -426,9 +427,15 @@ function least_energy(energies, i, j)
 	# finding indices of column to the left and right (subject to boundary conditions)
 	l, r = max(1, j - 1), min(size(energies, 2), j + 1)
 	# finding minimal energy of a path starting below and associated direction
-	min_energy, dir = findmin(map(k -> least_energy(energies, i + 1, k)[1], l:r))
+	min_energy, dir = findmin(first.(least_energy.(Ref(energies), i + 1, l:r)))
 	# returning minimal energy sum and column to jump to
 	return energies[i, j] + min_energy, l + dir - 1
+end
+
+# ╔═╡ 64489ee2-f5db-11ea-3d36-4de552d28682
+begin
+	energies = rand(8, 8)
+	first.(least_energy.(Ref(energies), 4, 2:4))
 end
 
 # ╔═╡ a7f3d9f8-f3bb-11ea-0c1a-55bbb8408f09
@@ -537,7 +544,7 @@ function memoized_least_energy(energies, i, j, memory)
 	l, r = max(1, j - 1), min(size(energies, 2), j + 1)
 	# finding minimal energy sum from (i, j) and updating memory
 	memory[(i, j)] = energies[i, j] 
-		+ minimum(map(k -> memoized_least_energy(energies, i + 1, k, memory), l:r))
+		+ minimum(memoized_least_energy.(Ref(energies), i + 1, l:r, Ref(memory)))
 	# returning minimal energy sum
 	return memory[(i, j)]
 end
@@ -558,7 +565,7 @@ function recursive_memoized_seam(energies, starting_pixel)
 		# indices of column to the left and right (subject to boundary conditions)
 		l, r = max(1, j - 1), min(n, j + 1)
 		# finding index of candidate pixel to jump to
-		dir = findmin(map(k -> memoized_least_energy(energies, i, k, memory), l:r))[2]
+		dir = argmin(memoized_least_energy.(Ref(energies), i, l:r, Ref(memory)))
 		# updating seam
 		seam[i] = l + dir - 1
 	end
@@ -590,7 +597,7 @@ function matrix_memoized_least_energy(energies, i, j, memory)
 	l, r = max(1, j - 1), min(size(energies, 2), j + 1)
 	# finding minimal energy sum from (i, j) and updating memory
 	memory[i, j] = energies[i, j] 
-	+ minimum(map(k -> matrix_memoized_least_energy(energies, i + 1, k, memory), l:r))
+	+ minimum(matrix_memoized_least_energy.(Ref(energies), i + 1, l:r, Ref(memory)))
 	# returning minimal energy sum
 	return memory[i, j]
 end
@@ -609,7 +616,7 @@ function matrix_memoized_seam(energies, starting_pixel)
 		# indices of column to the left and right (subject to boundary conditions)
 		l, r = max(1, j - 1), min(n, j + 1)
 		# finding index of candidate pixel to jump to
-		dir = findmin(map(k -> matrix_memoized_least_energy(energies, i, k, memory), l:r))[2]
+		dir = argmin(matrix_memoized_least_energy.(Ref(energies), i, l:r, Ref(memory)))
 		# updating seam
 		seam[i] = l + dir - 1
 	end
@@ -644,7 +651,7 @@ function least_energy_matrix(energies)
 		# indices of column to the left and right (subject to boundary conditions)
 		left, right = max(1, c - 1), min(n, c + 1)
 		# finding minimal energy below
-		min_energy_below = findmin(map(k -> least_energies[r + 1, k], left:right))[1]
+		min_energy_below = minimum(least_energies[r + 1, left:right])
 		# updating least_energies
 		least_energies[r, c] = energies[r, c] + min_energy_below
 	end
@@ -673,7 +680,7 @@ function seam_from_precomputed_least_energy(energies, starting_pixel::Int)
 		# indices of column to the left and right (subject to boundary conditions)
 		l, r = max(1, j - 1), min(n, j + 1)
 		# finding index of candidate pixel to jump to
-		dir = findmin(map(k -> least_energies[i, k], l:r))[2]
+		dir = argmin(least_energies[i, l:r])
 		# updating seam
 		seam[i] = l + dir - 1
 	end
@@ -1002,6 +1009,7 @@ bigbreak
 # ╟─ddba07dc-f3b7-11ea-353e-0f67713727fc
 # ╠═73b52fd6-f3b9-11ea-14ed-ebfcab1ce6aa
 # ╠═8ec27ef8-f320-11ea-2573-c97b7b908cb7
+# ╠═64489ee2-f5db-11ea-3d36-4de552d28682
 # ╟─9f18efe2-f38e-11ea-0871-6d7760d0b2f6
 # ╟─a7f3d9f8-f3bb-11ea-0c1a-55bbb8408f09
 # ╟─fa8e2772-f3b6-11ea-30f7-699717693164
@@ -1018,7 +1026,7 @@ bigbreak
 # ╟─56a7f954-f374-11ea-0391-f79b75195f4d
 # ╠═b1d09bc8-f320-11ea-26bb-0101c9a204e2
 # ╠═3e8b0868-f3bd-11ea-0c15-011bbd6ac051
-# ╠═4e3bcf88-f3c5-11ea-3ada-2ff9213647b7
+# ╟─4e3bcf88-f3c5-11ea-3ada-2ff9213647b7
 # ╠═4e3ef866-f3c5-11ea-3fb0-27d1ca9a9a3f
 # ╠═6e73b1da-f3c5-11ea-145f-6383effe8a89
 # ╟─cf39fa2a-f374-11ea-0680-55817de1b837
