@@ -159,8 +159,8 @@ function remove_in_each_row_no_vcat(img, column_numbers)
 	for (i, j) in enumerate(column_numbers)
 		# EDIT THE FOLLOWING LINE and split it into two lines
 		# to avoid using `vcat`.
-		img′[i, 1:j-1] .= img[i, 1:j-1]
-		img′[i, j:end] .= img[i, j+1:end]
+		img′[i, 1:j-1] .= img[i, 1:j-1]  # inserting pixels before j'th pixel
+		img′[i, j:end] .= img[i, j+1:end]  # inserting pixels after j'th pixel
 	end
 	img′
 end
@@ -204,8 +204,8 @@ function remove_in_each_row_views(img, column_numbers)
 	for (i, j) in enumerate(column_numbers)
 		# EDIT THE FOLLOWING LINE and split it into two lines
 		# to avoid using `vcat`.
-		img′[i, 1:j-1] .= @view img[i, 1:j-1]
-		img′[i, j:end] .= @view img[i, j+1:end]
+		img′[i, 1:j-1] .= @view img[i, 1:j-1]  # copying pixels before j'th pixel
+		img′[i, j:end] .= @view img[i, j+1:end]  # copying pixels after j'th pixel
 	end
 	img′
 end
@@ -332,15 +332,20 @@ random_seam(m, n, i) = reduce((a, b) -> [a..., clamp(last(a) + rand(-1:1), 1, n)
 
 # ╔═╡ abf20aa0-f31b-11ea-2548-9bea4fab4c37
 function greedy_seam(energies, starting_pixel::Int)
-	# you can delete the body of this function - it's just a placeholder.
-	# random_seam(size(energies)..., starting_pixel)
-	rₙ, cₙ = size(energies)
-	seam = [starting_pixel]
-	for r in 2:rₙ
-		left, right = max(1, seam[end] - 1), min(cₙ, seam[end] + 1)
+	m, n = size(energies)  # dimensions of matrix
+	# allocating seam array
+	seam = zeros(Int, m)
+	seam[1] = starting_pixel
+	
+	# iterating over rows
+	for r in 2:m
+		# indices of column to the left and right (subject to boundary conditions)
+		left, right = max(1, seam[r - 1] - 1), min(n, seam[r - 1] + 1)
+		# finding minimal energy index in next row
 		next_c = left + findmin(energies[r, left:right])[2] - 1
-		push!(seam, next_c)
+		seam[r] = next_c  # updating seam
 	end
+	
 	return seam
 end
 
@@ -418,8 +423,11 @@ function least_energy(energies, i, j)
 	i == size(energies, 1) && return energies[i, j], 0
 
 	# induction: combine results from recursive calls to `least_energy`
+	# finding indices of column to the left and right (subject to boundary conditions)
 	l, r = max(1, j - 1), min(size(energies, 2), j + 1)
+	# finding minimal energy of a path starting below and associated direction
 	min_energy, dir = findmin(map(k -> least_energy(energies, i + 1, k)[1], l:r))
+	# returning minimal energy sum and column to jump to
 	return energies[i, j] + min_energy, l + dir - 1
 end
 
@@ -457,12 +465,17 @@ This will give you the method used in the lecture to perform [exhaustive search 
 
 # ╔═╡ 85033040-f372-11ea-2c31-bb3147de3c0d
 function recursive_seam(energies, starting_pixel)
-	m, n = size(energies)
-	seam = [starting_pixel]
+	m, n = size(energies)  #  image dimensions
+	
+	# allocating seam array
+	seam = zeros(Int, m)
+	seam[1] = starting_pixel
+	
+	# iterating over rows
 	for i in 1:m-1
-		push!(seam, least_energy(energies, i, seam[end])[2])
+		seam[i + 1] = least_energy(energies, i, seam[i])[2]
 	end
-	println(length(seam), " ", m)
+	
 	return seam
 end
 
@@ -520,8 +533,12 @@ function memoized_least_energy(energies, i, j, memory)
 	(i, j) in keys(memory) && return memory[(i, j)]
 
 	# induction: combine results from recursive calls to `memoized_least_energy`
+	# finding indices of column to the left and right (subject to boundary conditions)
 	l, r = max(1, j - 1), min(size(energies, 2), j + 1)
-	memory[(i, j)] = energies[i, j] + minimum(map(k -> memoized_least_energy(energies, i + 1, k, memory), l:r))
+	# finding minimal energy sum from (i, j) and updating memory
+	memory[(i, j)] = energies[i, j] 
+		+ minimum(map(k -> memoized_least_energy(energies, i + 1, k, memory), l:r))
+	# returning minimal energy sum
 	return memory[(i, j)]
 end
 
@@ -529,13 +546,21 @@ end
 function recursive_memoized_seam(energies, starting_pixel)
 	memory = Dict{Tuple{Int,Int}, Float64}() # location => least energy.
 		# pass this every time you call memoized_least_energy.
-	m, n = size(energies)
-	seam = [starting_pixel]
+	m, n = size(energies)  # image dimensions
+
+	# allocating seam array
+	seam = zeros(Int, m)
+	seam[1] = starting_pixel
+	
+	# iterating over rows
 	for i in 2:m
-		j = seam[end]
+		j = seam[i - 1]  # previous seam pixel
+		# indices of column to the left and right (subject to boundary conditions)
 		l, r = max(1, j - 1), min(n, j + 1)
+		# finding index of candidate pixel to jump to
 		dir = findmin(map(k -> memoized_least_energy(energies, i, k, memory), l:r))[2]
-		push!(seam, l + dir - 1)
+		# updating seam
+		seam[i] = l + dir - 1
 	end
 	return seam
 end
@@ -556,19 +581,39 @@ Write a variation of `matrix_memoized_least_energy` and `matrix_memoized_seam` w
 
 # ╔═╡ c8724b5e-f3bd-11ea-0034-b92af21ca12d
 function matrix_memoized_least_energy(energies, i, j, memory)
-	m, n = size(energies)
-	
-	# Replace the following line with your code.
-	[starting_pixel for i=1:m]
+	# base case: reached bottom row
+	i == size(energies, 1) && return energies[i, j]
+	# base case: energy already known
+	memory[i, j] ≠ 0 && return memory[i, j]
+
+	# induction: combine results from recursive calls to `memoized_least_energy`			# finding indices of column to the left and right (subject to boundary conditions)
+	l, r = max(1, j - 1), min(size(energies, 2), j + 1)
+	# finding minimal energy sum from (i, j) and updating memory
+	memory[i, j] = energies[i, j] 
+	+ minimum(map(k -> matrix_memoized_least_energy(energies, i + 1, k, memory), l:r))
+	# returning minimal energy sum
+	return memory[i, j]
 end
 
 # ╔═╡ be7d40e2-f320-11ea-1b56-dff2a0a16e8d
 function matrix_memoized_seam(energies, starting_pixel)
 	memory = zeros(size(energies)) # use this as storage -- intially it's all zeros
-	m, n = size(energies)
+	m, n = size(energies)  # image dimensions
 	
-	# Replace the following line with your code.
-	[starting_pixel for i=1:m]
+	# allocating seam array
+	seam = zeros(Int, m)
+	seam[1] = starting_pixel
+	# iterating over rows
+	for i in 2:m
+		j = seam[i - 1]  # previous seam pixel
+		# indices of column to the left and right (subject to boundary conditions)
+		l, r = max(1, j - 1), min(n, j + 1)
+		# finding index of candidate pixel to jump to
+		dir = findmin(map(k -> matrix_memoized_least_energy(energies, i, k, memory), l:r))[2]
+		# updating seam
+		seam[i] = l + dir - 1
+	end
+	return seam
 end
 
 # ╔═╡ 507f3870-f3c5-11ea-11f6-ada3bb087634
@@ -587,7 +632,24 @@ Now it's easy to see that the above algorithm is equivalent to one that populate
 
 # ╔═╡ ff055726-f320-11ea-32f6-2bf38d7dd310
 function least_energy_matrix(energies)
-	copy(energies)
+	m, n = size(energies)  # matrix dimensions
+	
+	# creating least_energies matrix
+	least_energies = similar(energies)
+	# setting least energies of bottom row
+	least_energies[end, :] = energies[end, :]
+	
+	# iterating over rows and columns
+	for r in m-1:-1:1, c in 1:n
+		# indices of column to the left and right (subject to boundary conditions)
+		left, right = max(1, c - 1), min(n, c + 1)
+		# finding minimal energy below
+		min_energy_below = findmin(map(k -> least_energies[r + 1, k], left:right))[1]
+		# updating least_energies
+		least_energies[r, c] = energies[r, c] + min_energy_below
+	end
+	
+	return least_energies
 end
 
 # ╔═╡ 92e19f22-f37b-11ea-25f7-e321337e375e
@@ -599,11 +661,23 @@ md"""
 
 # ╔═╡ 795eb2c4-f37b-11ea-01e1-1dbac3c80c13
 function seam_from_precomputed_least_energy(energies, starting_pixel::Int)
-	least_energies = least_energy_matrix(energies)
-	m, n = size(least_energies)
-	
-	# Replace the following line with your code.
-	[starting_pixel for i=1:m]
+	m, n = size(energies) # matrix dimensions
+	least_energies = least_energy_matrix(energies)  # finding least energy matrix
+
+	# allocating seam array
+	seam = zeros(Int, m)
+	seam[1] = starting_pixel
+	# iterating over rows
+	for i in 2:m
+		j = seam[i - 1]  # previous seam pixel
+		# indices of column to the left and right (subject to boundary conditions)
+		l, r = max(1, j - 1), min(n, j + 1)
+		# finding index of candidate pixel to jump to
+		dir = findmin(map(k -> least_energies[i, k], l:r))[2]
+		# updating seam
+		seam[i] = l + dir - 1
+	end
+	return seam
 end
 
 # ╔═╡ 51df0c98-f3c5-11ea-25b8-af41dc182bac
@@ -666,8 +740,8 @@ end
 
 # ╔═╡ 4e3ef866-f3c5-11ea-3fb0-27d1ca9a9a3f
 if shrink_dict
-	dict_carved = shrink_n(img[1:100, 1:100], 99, recursive_memoized_seam)
-	md"Shrink by: $(@bind dict_n Slider(1:200, show_value=true))"
+	dict_carved = shrink_n(img[1:50, 1:50], 50, recursive_memoized_seam)
+	md"Shrink by: $(@bind dict_n Slider(1:50, show_value=true))"
 end
 
 # ╔═╡ 6e73b1da-f3c5-11ea-145f-6383effe8a89
@@ -677,8 +751,8 @@ end
 
 # ╔═╡ 50829af6-f3c5-11ea-04a8-0535edd3b0aa
 if shrink_matrix
-	matrix_carved = shrink_n(img, 200, matrix_memoized_seam)
-	md"Shrink by: $(@bind matrix_n Slider(1:200, show_value=true))"
+	matrix_carved = shrink_n(img[1:50, 1:50], 50, matrix_memoized_seam)
+	md"Shrink by: $(@bind matrix_n Slider(1:50, show_value=true))"
 end
 
 # ╔═╡ 9e56ecfa-f3c5-11ea-2e90-3b1839d12038
@@ -688,8 +762,8 @@ end
 
 # ╔═╡ 51e28596-f3c5-11ea-2237-2b72bbfaa001
 if shrink_bottomup
-	bottomup_carved = shrink_n(img, 200, seam_from_precomputed_least_energy)
-	md"Shrink by: $(@bind bottomup_n Slider(1:200, show_value=true))"
+	bottomup_carved = shrink_n(img[1:100, 1:100], 100, seam_from_precomputed_least_energy)
+	md"Shrink by: $(@bind bottomup_n Slider(1:50, show_value=true))"
 end
 
 # ╔═╡ 0a10acd8-f3c6-11ea-3e2f-7530a0af8c7f
@@ -895,14 +969,14 @@ bigbreak
 # ╟─8d558c4c-f328-11ea-0055-730ead5d5c34
 # ╟─318a2256-f369-11ea-23a9-2f74c566549b
 # ╟─7a44ba52-f318-11ea-0406-4731c80c1007
-# ╠═6c7e4b54-f318-11ea-2055-d9f9c0199341
+# ╟─6c7e4b54-f318-11ea-2055-d9f9c0199341
 # ╠═74059d04-f319-11ea-29b4-85f5f8f5c610
 # ╟─0b9ead92-f318-11ea-3744-37150d649d43
-# ╠═d184e9cc-f318-11ea-1a1e-994ab1330c1a
-# ╠═cdfb3508-f319-11ea-1486-c5c58a0b9177
-# ╠═f010933c-f318-11ea-22c5-4d2e64cd9629
+# ╟─d184e9cc-f318-11ea-1a1e-994ab1330c1a
+# ╟─cdfb3508-f319-11ea-1486-c5c58a0b9177
+# ╟─f010933c-f318-11ea-22c5-4d2e64cd9629
 # ╟─5fccc7cc-f369-11ea-3b9e-2f0eca7f0f0e
-# ╠═6f37b34c-f31a-11ea-2909-4f2079bf66ec
+# ╟─6f37b34c-f31a-11ea-2909-4f2079bf66ec
 # ╠═9fa0cd3a-f3e1-11ea-2f7e-bd73b8e3f302
 # ╟─f7eba2b6-f388-11ea-06ad-0b861c764d61
 # ╟─87afabf8-f317-11ea-3cb3-29dced8e265a
@@ -920,24 +994,24 @@ bigbreak
 # ╟─9945ae78-f395-11ea-1d78-cf6ad19606c8
 # ╟─87efe4c2-f38d-11ea-39cc-bdfa11298317
 # ╟─f6571d86-f388-11ea-0390-05592acb9195
-# ╠═f626b222-f388-11ea-0d94-1736759b5f52
+# ╟─f626b222-f388-11ea-0d94-1736759b5f52
 # ╟─52452d26-f36c-11ea-01a6-313114b4445d
 # ╠═2a98f268-f3b6-11ea-1eea-81c28256a19e
 # ╟─32e9a944-f3b6-11ea-0e82-1dff6c2eef8d
 # ╟─9101d5a0-f371-11ea-1c04-f3f43b96ca4a
-# ╠═ddba07dc-f3b7-11ea-353e-0f67713727fc
+# ╟─ddba07dc-f3b7-11ea-353e-0f67713727fc
 # ╠═73b52fd6-f3b9-11ea-14ed-ebfcab1ce6aa
 # ╠═8ec27ef8-f320-11ea-2573-c97b7b908cb7
 # ╟─9f18efe2-f38e-11ea-0871-6d7760d0b2f6
 # ╟─a7f3d9f8-f3bb-11ea-0c1a-55bbb8408f09
-# ╠═fa8e2772-f3b6-11ea-30f7-699717693164
+# ╟─fa8e2772-f3b6-11ea-30f7-699717693164
 # ╟─18e0fd8a-f3bc-11ea-0713-fbf74d5fa41a
 # ╟─cbf29020-f3ba-11ea-2cb0-b92836f3d04b
 # ╟─8bc930f0-f372-11ea-06cb-79ced2834720
 # ╠═85033040-f372-11ea-2c31-bb3147de3c0d
 # ╟─1d55333c-f393-11ea-229a-5b1e9cabea6a
-# ╠═d88bc272-f392-11ea-0efd-15e0e2b2cd4e
-# ╠═e66ef06a-f392-11ea-30ab-7160e7723a17
+# ╟─d88bc272-f392-11ea-0efd-15e0e2b2cd4e
+# ╟─e66ef06a-f392-11ea-30ab-7160e7723a17
 # ╟─c572f6ce-f372-11ea-3c9a-e3a21384edca
 # ╠═6d993a5c-f373-11ea-0dde-c94e3bbd1552
 # ╟─ea417c2a-f373-11ea-3bb0-b1b5754f2fac
@@ -959,14 +1033,14 @@ bigbreak
 # ╟─e0622780-f3b4-11ea-1f44-59fb9c5d2ebd
 # ╟─92e19f22-f37b-11ea-25f7-e321337e375e
 # ╠═795eb2c4-f37b-11ea-01e1-1dbac3c80c13
-# ╠═51df0c98-f3c5-11ea-25b8-af41dc182bac
-# ╠═51e28596-f3c5-11ea-2237-2b72bbfaa001
-# ╠═0a10acd8-f3c6-11ea-3e2f-7530a0af8c7f
+# ╟─51df0c98-f3c5-11ea-25b8-af41dc182bac
+# ╟─51e28596-f3c5-11ea-2237-2b72bbfaa001
+# ╟─0a10acd8-f3c6-11ea-3e2f-7530a0af8c7f
 # ╟─946b69a0-f3a2-11ea-2670-819a5dafe891
 # ╟─0fbe2af6-f381-11ea-2f41-23cd1cf930d9
 # ╟─48089a00-f321-11ea-1479-e74ba71df067
 # ╟─6b4d6584-f3be-11ea-131d-e5bdefcc791b
-# ╠═437ba6ce-f37d-11ea-1010-5f6a6e282f9b
+# ╟─437ba6ce-f37d-11ea-1010-5f6a6e282f9b
 # ╟─ef88c388-f388-11ea-3828-ff4db4d1874e
 # ╟─ef26374a-f388-11ea-0b4e-67314a9a9094
 # ╟─6bdbcf4c-f321-11ea-0288-fb16ff1ec526
