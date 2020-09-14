@@ -419,7 +419,6 @@ Return these two values in a tuple.
 # ╔═╡ 8ec27ef8-f320-11ea-2573-c97b7b908cb7
 ## returns lowest possible sum energy at pixel (i, j), and the column to jump to in row i+1.
 function least_energy(energies, i, j)
-	println("$i, $j")
 	# base case: already at last row
 	i == size(energies, 1) && return energies[i, j], 0
 
@@ -499,7 +498,7 @@ md"""
 
 # ╔═╡ 6d993a5c-f373-11ea-0dde-c94e3bbd1552
 exhaustive_observation = md"""
-The number of possible seams is $O(3^m \cdot n)$.
+The number of possible seams is $O(3^n \cdot m)$.
 """
 
 # ╔═╡ ea417c2a-f373-11ea-3bb0-b1b5754f2fac
@@ -647,13 +646,13 @@ function least_energy_matrix(energies)
 	least_energies[end, :] = energies[end, :]
 	
 	# iterating over rows and columns
-	for r in m-1:-1:1, c in 1:n
+	for i in m-1:-1:1, j in 1:n
 		# indices of column to the left and right (subject to boundary conditions)
-		left, right = max(1, c - 1), min(n, c + 1)
+		l, r = max(1, c - 1), min(n, c + 1)
 		# finding minimal energy below
-		min_energy_below = minimum(least_energies[r + 1, left:right])
+		min_energy_below = minimum(least_energies[j + 1, l:r])
 		# updating least_energies
-		least_energies[r, c] = energies[r, c] + min_energy_below
+		least_energies[i, j] = energies[i, j] + min_energy_below
 	end
 	
 	return least_energies
@@ -669,7 +668,6 @@ md"""
 # ╔═╡ 795eb2c4-f37b-11ea-01e1-1dbac3c80c13
 function seam_from_precomputed_least_energy(energies, starting_pixel::Int)
 	m, n = size(energies) # matrix dimensions
-	least_energies = least_energy_matrix(energies)  # finding least energy matrix
 
 	# allocating seam array
 	seam = zeros(Int, m)
@@ -680,7 +678,7 @@ function seam_from_precomputed_least_energy(energies, starting_pixel::Int)
 		# indices of column to the left and right (subject to boundary conditions)
 		l, r = max(1, j - 1), min(n, j + 1)
 		# finding index of candidate pixel to jump to
-		dir = argmin(least_energies[i, l:r])
+		dir = argmin(energies[i, l:r])
 		# updating seam
 		seam[i] = l + dir - 1
 	end
@@ -769,8 +767,8 @@ end
 
 # ╔═╡ 51e28596-f3c5-11ea-2237-2b72bbfaa001
 if shrink_bottomup
-	bottomup_carved = shrink_n(img[1:100, 1:100], 100, seam_from_precomputed_least_energy)
-	md"Shrink by: $(@bind bottomup_n Slider(1:50, show_value=true))"
+	bottomup_carved = shrink_n(img, 200, seam_from_precomputed_least_energy)
+	md"Shrink by: $(@bind bottomup_n Slider(1:200, show_value=true))"
 end
 
 # ╔═╡ 0a10acd8-f3c6-11ea-3e2f-7530a0af8c7f
@@ -1028,7 +1026,7 @@ bigbreak
 # ╠═3e8b0868-f3bd-11ea-0c15-011bbd6ac051
 # ╟─4e3bcf88-f3c5-11ea-3ada-2ff9213647b7
 # ╠═4e3ef866-f3c5-11ea-3fb0-27d1ca9a9a3f
-# ╠═6e73b1da-f3c5-11ea-145f-6383effe8a89
+# ╟─6e73b1da-f3c5-11ea-145f-6383effe8a89
 # ╟─cf39fa2a-f374-11ea-0680-55817de1b837
 # ╠═c8724b5e-f3bd-11ea-0034-b92af21ca12d
 # ╠═be7d40e2-f320-11ea-1b56-dff2a0a16e8d
@@ -1042,13 +1040,13 @@ bigbreak
 # ╟─92e19f22-f37b-11ea-25f7-e321337e375e
 # ╠═795eb2c4-f37b-11ea-01e1-1dbac3c80c13
 # ╟─51df0c98-f3c5-11ea-25b8-af41dc182bac
-# ╟─51e28596-f3c5-11ea-2237-2b72bbfaa001
+# ╠═51e28596-f3c5-11ea-2237-2b72bbfaa001
 # ╟─0a10acd8-f3c6-11ea-3e2f-7530a0af8c7f
 # ╟─946b69a0-f3a2-11ea-2670-819a5dafe891
 # ╟─0fbe2af6-f381-11ea-2f41-23cd1cf930d9
 # ╟─48089a00-f321-11ea-1479-e74ba71df067
 # ╟─6b4d6584-f3be-11ea-131d-e5bdefcc791b
-# ╟─437ba6ce-f37d-11ea-1010-5f6a6e282f9b
+# ╠═437ba6ce-f37d-11ea-1010-5f6a6e282f9b
 # ╟─ef88c388-f388-11ea-3828-ff4db4d1874e
 # ╟─ef26374a-f388-11ea-0b4e-67314a9a9094
 # ╟─6bdbcf4c-f321-11ea-0288-fb16ff1ec526
