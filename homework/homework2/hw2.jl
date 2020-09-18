@@ -425,16 +425,43 @@ function least_energy(energies, i, j)
 	# induction: combine results from recursive calls to `least_energy`
 	# finding indices of column to the left and right (subject to boundary conditions)
 	l, r = max(1, j - 1), min(size(energies, 2), j + 1)
-	# finding minimal energy of a path starting below and associated direction
-	min_energy, dir = findmin(first.(least_energy.(Ref(energies), i + 1, l:r)))
+	
+	# storing min_energy found so far and associated column number
+	min_energy, col = typemax(Float64), 0
+	# iterating over possible columns
+	for k in l:r
+		# finding energy associated with column
+		energy, _ = least_energy(energies, i + 1, k)
+		# updating status variables as necessary
+		if energy < min_energy
+			min_energy, col = energy, k
+		end
+	end
+	
 	# returning minimal energy sum and column to jump to
-	return energies[i, j] + min_energy, l + dir - 1
+	return energies[i, j] + min_energy, col
+	
 end
 
-# ╔═╡ 64489ee2-f5db-11ea-3d36-4de552d28682
-begin
-	energies = rand(8, 8)
-	first.(least_energy.(Ref(energies), 4, 2:4))
+# ╔═╡ dd1e7454-f7a2-11ea-096d-f7a45748f1c3
+## cleaner solution, slower than least_energy by a factor of 2
+function least_energy2(energies, i, j)  
+	# base case: already at last row
+	i == size(energies, 1) && return energies[i, j], 0
+
+	# induction: combine results from recursive calls to `least_energy`
+	# finding indices of column to the left and right (subject to boundary conditions)
+	l, r = max(1, j - 1), min(size(energies, 2), j + 1)
+	
+	# finding minimal energy of a path starting below and associated direction
+	
+	# own version of findmin that takes a function defined in Helper Functions
+	min_energy, dir = findmin(k -> least_energy2(energies, i + 1, k) |> first, l:r)
+
+	# more expensive, Base-supported implementation requires allocs with broadcasting:
+	# min_energy, dir = least_energy2.(Ref(energies), i + 1, l:r) .|> first |> findmin
+	# returning minimal energy sum and column to jump to
+	return energies[i, j] + min_energy, l + dir - 1	
 end
 
 # ╔═╡ a7f3d9f8-f3bb-11ea-0c1a-55bbb8408f09
@@ -479,7 +506,7 @@ function recursive_seam(energies, starting_pixel)
 	
 	# iterating over rows
 	for i in 1:m-1
-		seam[i + 1] = least_energy(energies, i, seam[i])[2]
+		_, seam[i + 1] = least_energy(energies, i, seam[i])
 	end
 	
 	return seam
@@ -498,7 +525,7 @@ md"""
 
 # ╔═╡ 6d993a5c-f373-11ea-0dde-c94e3bbd1552
 exhaustive_observation = md"""
-The number of possible seams is $O(3^n \cdot m)$.
+The number of possible seams is $O(3^m \cdot n)$.
 """
 
 # ╔═╡ ea417c2a-f373-11ea-3bb0-b1b5754f2fac
@@ -533,26 +560,22 @@ You are expected to read and understand the [documentation on dictionaries](http
 
 # ╔═╡ b1d09bc8-f320-11ea-26bb-0101c9a204e2
 function memoized_least_energy(energies, i, j, memory)
-	# base case: reached bottom row
-	i == size(energies, 1) && return energies[i, j]
 	# base case: energy already known
 	(i, j) in keys(memory) && return memory[(i, j)]
 
 	# induction: combine results from recursive calls to `memoized_least_energy`
 	# finding indices of column to the left and right (subject to boundary conditions)
 	l, r = max(1, j - 1), min(size(energies, 2), j + 1)
-	# finding minimal energy sum from (i, j) and updating memory
-	memory[(i, j)] = energies[i, j] 
-		+ minimum(memoized_least_energy.(Ref(energies), i + 1, l:r, Ref(memory)))
-	# returning minimal energy sum
-	return memory[(i, j)]
+	memory[(i, j)] = energies[i, j] + 
+		minimum(k -> memoized_least_energy(energies, i + 1, k, memory), l:r)
+	return memory[(i, j)]	
 end
 
 # ╔═╡ 3e8b0868-f3bd-11ea-0c15-011bbd6ac051
 function recursive_memoized_seam(energies, starting_pixel)
-	memory = Dict{Tuple{Int,Int}, Float64}() # location => least energy.
-		# pass this every time you call memoized_least_energy.
 	m, n = size(energies)  # image dimensions
+	memory = Dict((m, c) => energies[m, c] for c in 1:n) # location => least energy.
+		# pass this every time you call memoized_least_energy.
 
 	# allocating seam array
 	seam = zeros(Int, m)
@@ -563,8 +586,10 @@ function recursive_memoized_seam(energies, starting_pixel)
 		j = seam[i - 1]  # previous seam pixel
 		# indices of column to the left and right (subject to boundary conditions)
 		l, r = max(1, j - 1), min(n, j + 1)
-		# finding index of candidate pixel to jump to
-		dir = argmin(memoized_least_energy.(Ref(energies), i, l:r, Ref(memory)))
+		# own version of argmin that takes a function defined in Helper Functions
+ 		dir = argmin(k -> memoized_least_energy(energies, i, k, memory), l:r)
+		# more expensive, Base-supported implementation requires allocs:
+# 			dir = argmin(memoized_least_energy.(Ref(energies), i, l:r, Ref(memory)))
 		# updating seam
 		seam[i] = l + dir - 1
 	end
@@ -586,26 +611,23 @@ Write a variation of `matrix_memoized_least_energy` and `matrix_memoized_seam` w
 """
 
 # ╔═╡ c8724b5e-f3bd-11ea-0034-b92af21ca12d
-function matrix_memoized_least_energy(energies, i, j, memory)
-	# base case: reached bottom row
-	i == size(energies, 1) && return energies[i, j]
+@inbounds function matrix_memoized_least_energy(energies, i, j, memory)
 	# base case: energy already known
 	memory[i, j] ≠ 0 && return memory[i, j]
 
-	# induction: combine results from recursive calls to `memoized_least_energy`			# finding indices of column to the left and right (subject to boundary conditions)
+	# induction: combine results from recursive calls to `memoized_least_energy`
+	# finding indices of column to the left and right (subject to boundary conditions)
 	l, r = max(1, j - 1), min(size(energies, 2), j + 1)
-	# finding minimal energy sum from (i, j) and updating memory
-	memory[i, j] = energies[i, j] 
-	+ minimum(matrix_memoized_least_energy.(Ref(energies), i + 1, l:r, Ref(memory)))
-	# returning minimal energy sum
+	memory[i, j] = energies[i, j] + 
+		minimum(k -> matrix_memoized_least_energy(energies, i + 1, k, memory), l:r)
 	return memory[i, j]
 end
 
 # ╔═╡ be7d40e2-f320-11ea-1b56-dff2a0a16e8d
-function matrix_memoized_seam(energies, starting_pixel)
+@inbounds function matrix_memoized_seam(energies, starting_pixel)
 	memory = zeros(size(energies)) # use this as storage -- intially it's all zeros
 	m, n = size(energies)  # image dimensions
-	
+	memory[end, :] = @view energies[end, :]
 	# allocating seam array
 	seam = zeros(Int, m)
 	seam[1] = starting_pixel
@@ -615,10 +637,16 @@ function matrix_memoized_seam(energies, starting_pixel)
 		# indices of column to the left and right (subject to boundary conditions)
 		l, r = max(1, j - 1), min(n, j + 1)
 		# finding index of candidate pixel to jump to
-		dir = argmin(matrix_memoized_least_energy.(Ref(energies), i, l:r, Ref(memory)))
+		# own version of argmin that takes a function defined in Helper Functions
+		dir = argmin(k -> matrix_memoized_least_energy(energies, i, k, memory), l:r)
+		# more expensive, Base-supported implementation requires allocs:
+# 		dir = argmin(matrix_memoized_least_energy.(
+# 				Ref(energies), i, l:r, Ref(memory))
+# 		)
 		# updating seam
 		seam[i] = l + dir - 1
 	end
+	
 	return seam
 end
 
@@ -649,10 +677,9 @@ function least_energy_matrix(energies)
 	for i in m-1:-1:1, j in 1:n
 		# indices of column to the left and right (subject to boundary conditions)
 		l, r = max(1, c - 1), min(n, c + 1)
-		# finding minimal energy below
-		min_energy_below = minimum(least_energies[j + 1, l:r])
-		# updating least_energies
-		least_energies[i, j] = energies[i, j] + min_energy_below
+		# finding minimal energy and updating least_energies
+		least_energies[i, j] = energies[i, j] 
+			+ minimum(@view least_energies[i + 1, l:r])
 	end
 	
 	return least_energies
@@ -678,7 +705,7 @@ function seam_from_precomputed_least_energy(energies, starting_pixel::Int)
 		# indices of column to the left and right (subject to boundary conditions)
 		l, r = max(1, j - 1), min(n, j + 1)
 		# finding index of candidate pixel to jump to
-		dir = argmin(energies[i, l:r])
+		dir = argmin(@view energies[i, l:r])
 		# updating seam
 		seam[i] = l + dir - 1
 	end
@@ -700,6 +727,28 @@ end
 md"## Function library
 
 Just some helper functions used in the notebook."
+
+# ╔═╡ 41019e20-f9c3-11ea-188b-611506f54139
+@inline function Base.findmin(f, a)
+	min_arg, min_val = 0, typemax(Float64)
+	for i in eachindex(a)
+		if (val = f(a[i])) < min_val
+			min_arg, min_val = i, val
+		end
+	end
+	return min_val, min_arg
+end
+
+# ╔═╡ 4e09093e-f9c1-11ea-3ffb-21a0a91f8b88
+@inline function Base.argmin(f, a)
+	min_arg, min_val = 0, typemax(Float64)
+	for i in eachindex(a)
+		if (val = f(a[i])) < min_val
+			min_arg, min_val = i, val
+		end
+	end
+	return min_arg
+end
 
 # ╔═╡ ef88c388-f388-11ea-3828-ff4db4d1874e
 function mark_path(img, path)
@@ -743,10 +792,22 @@ if shrink_greedy
 	greedy_carved[greedy_n]
 end
 
+# ╔═╡ d88bc272-f392-11ea-0efd-15e0e2b2cd4e
+if shrink_recursive
+	@time recursive_carved = shrink_n(img[1:15, 1:15], 8, recursive_seam)
+	md"Shrink by: $(@bind recursive_n Slider(1:3, show_value=true))"
+end
+
+# ╔═╡ e66ef06a-f392-11ea-30ab-7160e7723a17
+if shrink_recursive
+	recursive_carved[recursive_n]
+end
+
 # ╔═╡ 4e3ef866-f3c5-11ea-3fb0-27d1ca9a9a3f
 if shrink_dict
-	dict_carved = shrink_n(img[1:50, 1:50], 50, recursive_memoized_seam)
-	md"Shrink by: $(@bind dict_n Slider(1:50, show_value=true))"
+	# ~10 seconds for 100 seams in a 100*100 image
+	dict_carved = shrink_n(img[1:2:200, 1:2:200], 100, recursive_memoized_seam)
+	md"Shrink by: $(@bind dict_n Slider(1:100, show_value=true))"
 end
 
 # ╔═╡ 6e73b1da-f3c5-11ea-145f-6383effe8a89
@@ -756,8 +817,9 @@ end
 
 # ╔═╡ 50829af6-f3c5-11ea-04a8-0535edd3b0aa
 if shrink_matrix
-	matrix_carved = shrink_n(img[1:50, 1:50], 50, matrix_memoized_seam)
-	md"Shrink by: $(@bind matrix_n Slider(1:50, show_value=true))"
+	# 8 seconds for 100 seams in a 100*100 image
+	matrix_carved = shrink_n(img[1:2:200, 1:2:200], 100, matrix_memoized_seam)
+	md"Shrink by: $(@bind matrix_n Slider(1:8, show_value=true))"
 end
 
 # ╔═╡ 9e56ecfa-f3c5-11ea-2e90-3b1839d12038
@@ -799,17 +861,6 @@ if compute_access
 	tracked = track_access(energy(pika))
 	least_energy(tracked, 1,7)
 	tracked.accesses[]
-end
-
-# ╔═╡ d88bc272-f392-11ea-0efd-15e0e2b2cd4e
-if shrink_recursive
-	recursive_carved = shrink_n(pika, 3, recursive_seam)
-	md"Shrink by: $(@bind recursive_n Slider(1:3, show_value=true))"
-end
-
-# ╔═╡ e66ef06a-f392-11ea-30ab-7160e7723a17
-if shrink_recursive
-	recursive_carved[recursive_n]
 end
 
 # ╔═╡ ffc17f40-f380-11ea-30ee-0fe8563c0eb1
@@ -974,12 +1025,12 @@ bigbreak
 # ╟─8d558c4c-f328-11ea-0055-730ead5d5c34
 # ╟─318a2256-f369-11ea-23a9-2f74c566549b
 # ╟─7a44ba52-f318-11ea-0406-4731c80c1007
-# ╟─6c7e4b54-f318-11ea-2055-d9f9c0199341
+# ╠═6c7e4b54-f318-11ea-2055-d9f9c0199341
 # ╠═74059d04-f319-11ea-29b4-85f5f8f5c610
 # ╟─0b9ead92-f318-11ea-3744-37150d649d43
 # ╟─d184e9cc-f318-11ea-1a1e-994ab1330c1a
 # ╟─cdfb3508-f319-11ea-1486-c5c58a0b9177
-# ╟─f010933c-f318-11ea-22c5-4d2e64cd9629
+# ╠═f010933c-f318-11ea-22c5-4d2e64cd9629
 # ╟─5fccc7cc-f369-11ea-3b9e-2f0eca7f0f0e
 # ╟─6f37b34c-f31a-11ea-2909-4f2079bf66ec
 # ╠═9fa0cd3a-f3e1-11ea-2f7e-bd73b8e3f302
@@ -998,16 +1049,16 @@ bigbreak
 # ╟─980b1104-f394-11ea-0948-21002f26ee25
 # ╟─9945ae78-f395-11ea-1d78-cf6ad19606c8
 # ╟─87efe4c2-f38d-11ea-39cc-bdfa11298317
-# ╟─f6571d86-f388-11ea-0390-05592acb9195
+# ╠═f6571d86-f388-11ea-0390-05592acb9195
 # ╟─f626b222-f388-11ea-0d94-1736759b5f52
 # ╟─52452d26-f36c-11ea-01a6-313114b4445d
 # ╠═2a98f268-f3b6-11ea-1eea-81c28256a19e
 # ╟─32e9a944-f3b6-11ea-0e82-1dff6c2eef8d
 # ╟─9101d5a0-f371-11ea-1c04-f3f43b96ca4a
-# ╟─ddba07dc-f3b7-11ea-353e-0f67713727fc
+# ╠═ddba07dc-f3b7-11ea-353e-0f67713727fc
 # ╠═73b52fd6-f3b9-11ea-14ed-ebfcab1ce6aa
 # ╠═8ec27ef8-f320-11ea-2573-c97b7b908cb7
-# ╠═64489ee2-f5db-11ea-3d36-4de552d28682
+# ╠═dd1e7454-f7a2-11ea-096d-f7a45748f1c3
 # ╟─9f18efe2-f38e-11ea-0871-6d7760d0b2f6
 # ╟─a7f3d9f8-f3bb-11ea-0c1a-55bbb8408f09
 # ╟─fa8e2772-f3b6-11ea-30f7-699717693164
@@ -1016,7 +1067,7 @@ bigbreak
 # ╟─8bc930f0-f372-11ea-06cb-79ced2834720
 # ╠═85033040-f372-11ea-2c31-bb3147de3c0d
 # ╟─1d55333c-f393-11ea-229a-5b1e9cabea6a
-# ╟─d88bc272-f392-11ea-0efd-15e0e2b2cd4e
+# ╠═d88bc272-f392-11ea-0efd-15e0e2b2cd4e
 # ╟─e66ef06a-f392-11ea-30ab-7160e7723a17
 # ╟─c572f6ce-f372-11ea-3c9a-e3a21384edca
 # ╠═6d993a5c-f373-11ea-0dde-c94e3bbd1552
@@ -1032,7 +1083,7 @@ bigbreak
 # ╠═be7d40e2-f320-11ea-1b56-dff2a0a16e8d
 # ╟─507f3870-f3c5-11ea-11f6-ada3bb087634
 # ╠═50829af6-f3c5-11ea-04a8-0535edd3b0aa
-# ╠═9e56ecfa-f3c5-11ea-2e90-3b1839d12038
+# ╟─9e56ecfa-f3c5-11ea-2e90-3b1839d12038
 # ╟─4f48c8b8-f39d-11ea-25d2-1fab031a514f
 # ╟─24792456-f37b-11ea-07b2-4f4c8caea633
 # ╠═ff055726-f320-11ea-32f6-2bf38d7dd310
@@ -1046,7 +1097,9 @@ bigbreak
 # ╟─0fbe2af6-f381-11ea-2f41-23cd1cf930d9
 # ╟─48089a00-f321-11ea-1479-e74ba71df067
 # ╟─6b4d6584-f3be-11ea-131d-e5bdefcc791b
-# ╠═437ba6ce-f37d-11ea-1010-5f6a6e282f9b
+# ╠═41019e20-f9c3-11ea-188b-611506f54139
+# ╠═4e09093e-f9c1-11ea-3ffb-21a0a91f8b88
+# ╟─437ba6ce-f37d-11ea-1010-5f6a6e282f9b
 # ╟─ef88c388-f388-11ea-3828-ff4db4d1874e
 # ╟─ef26374a-f388-11ea-0b4e-67314a9a9094
 # ╟─6bdbcf4c-f321-11ea-0288-fb16ff1ec526
