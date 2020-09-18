@@ -159,8 +159,13 @@ function remove_in_each_row_no_vcat(img, column_numbers)
 	for (i, j) in enumerate(column_numbers)
 		# EDIT THE FOLLOWING LINE and split it into two lines
 		# to avoid using `vcat`.
+<<<<<<< HEAD
 		img′[i, 1:j-1] .= img[i, 1:j-1]  # inserting pixels before j'th pixel
 		img′[i, j:end] .= img[i, j+1:end]  # inserting pixels after j'th pixel
+=======
+		img′[i, 1:j-1] .= img[i, 1:j-1]
+		img′[i, j:end] .= img[i, j+1:end]
+>>>>>>> fff15bb95da6567f90015258133a2c068901fb34
 	end
 	img′
 end
@@ -204,8 +209,13 @@ function remove_in_each_row_views(img, column_numbers)
 	for (i, j) in enumerate(column_numbers)
 		# EDIT THE FOLLOWING LINE and split it into two lines
 		# to avoid using `vcat`.
+<<<<<<< HEAD
 		img′[i, 1:j-1] .= @view img[i, 1:j-1]  # copying pixels before j'th pixel
 		img′[i, j:end] .= @view img[i, j+1:end]  # copying pixels after j'th pixel
+=======
+		img′[i, 1:j-1] .= @view img[i, 1:j-1]
+		img′[i, j:end] .= @view img[i, j+1:end]
+>>>>>>> fff15bb95da6567f90015258133a2c068901fb34
 	end
 	img′
 end
@@ -332,6 +342,7 @@ random_seam(m, n, i) = reduce((a, b) -> [a..., clamp(last(a) + rand(-1:1), 1, n)
 
 # ╔═╡ abf20aa0-f31b-11ea-2548-9bea4fab4c37
 function greedy_seam(energies, starting_pixel::Int)
+<<<<<<< HEAD
 	m, n = size(energies)  # dimensions of matrix
 	# allocating seam array
 	seam = zeros(Int, m)
@@ -346,6 +357,17 @@ function greedy_seam(energies, starting_pixel::Int)
 		seam[r] = next_c  # updating seam
 	end
 	
+=======
+	# you can delete the body of this function - it's just a placeholder.
+	# random_seam(size(energies)..., starting_pixel)
+	rₙ, cₙ = size(energies)
+	seam = [starting_pixel]
+	for r in 2:rₙ
+		left, right = max(1, seam[end] - 1), min(cₙ, seam[end] + 1)
+		next_c = left + findmin(energies[r, left:right])[2] - 1
+		push!(seam, next_c)
+	end
+>>>>>>> fff15bb95da6567f90015258133a2c068901fb34
 	return seam
 end
 
@@ -423,6 +445,7 @@ function least_energy(energies, i, j)
 	i == size(energies, 1) && return energies[i, j], 0
 
 	# induction: combine results from recursive calls to `least_energy`
+<<<<<<< HEAD
 	# finding indices of column to the left and right (subject to boundary conditions)
 	l, r = max(1, j - 1), min(size(energies, 2), j + 1)
 	
@@ -462,6 +485,11 @@ function least_energy2(energies, i, j)
 	# min_energy, dir = least_energy2.(Ref(energies), i + 1, l:r) .|> first |> findmin
 	# returning minimal energy sum and column to jump to
 	return energies[i, j] + min_energy, l + dir - 1	
+=======
+	l, r = max(1, j - 1), min(size(energies, 2), j + 1)
+	min_energy, dir = findmin(map(k -> least_energy(energies, i + 1, k)[1], l:r))
+	return energies[i, j] + min_energy, l + dir - 1
+>>>>>>> fff15bb95da6567f90015258133a2c068901fb34
 end
 
 # ╔═╡ a7f3d9f8-f3bb-11ea-0c1a-55bbb8408f09
@@ -498,6 +526,7 @@ This will give you the method used in the lecture to perform [exhaustive search 
 
 # ╔═╡ 85033040-f372-11ea-2c31-bb3147de3c0d
 function recursive_seam(energies, starting_pixel)
+<<<<<<< HEAD
 	m, n = size(energies)  #  image dimensions
 	
 	# allocating seam array
@@ -509,6 +538,14 @@ function recursive_seam(energies, starting_pixel)
 		_, seam[i + 1] = least_energy(energies, i, seam[i])
 	end
 	
+=======
+	m, n = size(energies)
+	seam = [starting_pixel]
+	for i in 1:m-1
+		push!(seam, least_energy(energies, i, seam[end])[2])
+	end
+	println(length(seam), " ", m)
+>>>>>>> fff15bb95da6567f90015258133a2c068901fb34
 	return seam
 end
 
@@ -560,19 +597,31 @@ You are expected to read and understand the [documentation on dictionaries](http
 
 # ╔═╡ b1d09bc8-f320-11ea-26bb-0101c9a204e2
 function memoized_least_energy(energies, i, j, memory)
+<<<<<<< HEAD
+=======
+	# base case: reached bottom row
+	i == size(energies, 1) && return energies[i, j]
+>>>>>>> fff15bb95da6567f90015258133a2c068901fb34
 	# base case: energy already known
 	(i, j) in keys(memory) && return memory[(i, j)]
 
 	# induction: combine results from recursive calls to `memoized_least_energy`
+<<<<<<< HEAD
 	# finding indices of column to the left and right (subject to boundary conditions)
 	l, r = max(1, j - 1), min(size(energies, 2), j + 1)
 	memory[(i, j)] = energies[i, j] + 
 		minimum(k -> memoized_least_energy(energies, i + 1, k, memory), l:r)
 	return memory[(i, j)]	
+=======
+	l, r = max(1, j - 1), min(size(energies, 2), j + 1)
+	memory[(i, j)] = energies[i, j] + minimum(map(k -> memoized_least_energy(energies, i + 1, k, memory), l:r))
+	return memory[(i, j)]
+>>>>>>> fff15bb95da6567f90015258133a2c068901fb34
 end
 
 # ╔═╡ 3e8b0868-f3bd-11ea-0c15-011bbd6ac051
 function recursive_memoized_seam(energies, starting_pixel)
+<<<<<<< HEAD
 	m, n = size(energies)  # image dimensions
 	memory = Dict((m, c) => energies[m, c] for c in 1:n) # location => least energy.
 		# pass this every time you call memoized_least_energy.
@@ -592,6 +641,17 @@ function recursive_memoized_seam(energies, starting_pixel)
 # 			dir = argmin(memoized_least_energy.(Ref(energies), i, l:r, Ref(memory)))
 		# updating seam
 		seam[i] = l + dir - 1
+=======
+	memory = Dict{Tuple{Int,Int}, Float64}() # location => least energy.
+		# pass this every time you call memoized_least_energy.
+	m, n = size(energies)
+	seam = [starting_pixel]
+	for i in 2:m
+		j = seam[end]
+		l, r = max(1, j - 1), min(n, j + 1)
+		dir = findmin(map(k -> memoized_least_energy(energies, i, k, memory), l:r))[2]
+		push!(seam, l + dir - 1)
+>>>>>>> fff15bb95da6567f90015258133a2c068901fb34
 	end
 	return seam
 end
@@ -792,6 +852,7 @@ if shrink_greedy
 	greedy_carved[greedy_n]
 end
 
+<<<<<<< HEAD
 # ╔═╡ d88bc272-f392-11ea-0efd-15e0e2b2cd4e
 if shrink_recursive
 	@time recursive_carved = shrink_n(img[1:15, 1:15], 8, recursive_seam)
@@ -808,6 +869,12 @@ if shrink_dict
 	# ~10 seconds for 100 seams in a 100*100 image
 	dict_carved = shrink_n(img[1:2:200, 1:2:200], 100, recursive_memoized_seam)
 	md"Shrink by: $(@bind dict_n Slider(1:100, show_value=true))"
+=======
+# ╔═╡ 4e3ef866-f3c5-11ea-3fb0-27d1ca9a9a3f
+if shrink_dict
+	dict_carved = shrink_n(img[1:100, 1:100], 99, recursive_memoized_seam)
+	md"Shrink by: $(@bind dict_n Slider(1:200, show_value=true))"
+>>>>>>> fff15bb95da6567f90015258133a2c068901fb34
 end
 
 # ╔═╡ 6e73b1da-f3c5-11ea-145f-6383effe8a89
@@ -861,6 +928,17 @@ if compute_access
 	tracked = track_access(energy(pika))
 	least_energy(tracked, 1,7)
 	tracked.accesses[]
+end
+
+# ╔═╡ d88bc272-f392-11ea-0efd-15e0e2b2cd4e
+if shrink_recursive
+	recursive_carved = shrink_n(pika, 3, recursive_seam)
+	md"Shrink by: $(@bind recursive_n Slider(1:3, show_value=true))"
+end
+
+# ╔═╡ e66ef06a-f392-11ea-30ab-7160e7723a17
+if shrink_recursive
+	recursive_carved[recursive_n]
 end
 
 # ╔═╡ ffc17f40-f380-11ea-30ee-0fe8563c0eb1
@@ -1049,8 +1127,13 @@ bigbreak
 # ╟─980b1104-f394-11ea-0948-21002f26ee25
 # ╟─9945ae78-f395-11ea-1d78-cf6ad19606c8
 # ╟─87efe4c2-f38d-11ea-39cc-bdfa11298317
+<<<<<<< HEAD
 # ╠═f6571d86-f388-11ea-0390-05592acb9195
 # ╟─f626b222-f388-11ea-0d94-1736759b5f52
+=======
+# ╟─f6571d86-f388-11ea-0390-05592acb9195
+# ╠═f626b222-f388-11ea-0d94-1736759b5f52
+>>>>>>> fff15bb95da6567f90015258133a2c068901fb34
 # ╟─52452d26-f36c-11ea-01a6-313114b4445d
 # ╠═2a98f268-f3b6-11ea-1eea-81c28256a19e
 # ╟─32e9a944-f3b6-11ea-0e82-1dff6c2eef8d
@@ -1061,7 +1144,7 @@ bigbreak
 # ╠═dd1e7454-f7a2-11ea-096d-f7a45748f1c3
 # ╟─9f18efe2-f38e-11ea-0871-6d7760d0b2f6
 # ╟─a7f3d9f8-f3bb-11ea-0c1a-55bbb8408f09
-# ╟─fa8e2772-f3b6-11ea-30f7-699717693164
+# ╠═fa8e2772-f3b6-11ea-30f7-699717693164
 # ╟─18e0fd8a-f3bc-11ea-0713-fbf74d5fa41a
 # ╟─cbf29020-f3ba-11ea-2cb0-b92836f3d04b
 # ╟─8bc930f0-f372-11ea-06cb-79ced2834720
@@ -1097,9 +1180,13 @@ bigbreak
 # ╟─0fbe2af6-f381-11ea-2f41-23cd1cf930d9
 # ╟─48089a00-f321-11ea-1479-e74ba71df067
 # ╟─6b4d6584-f3be-11ea-131d-e5bdefcc791b
+<<<<<<< HEAD
 # ╠═41019e20-f9c3-11ea-188b-611506f54139
 # ╠═4e09093e-f9c1-11ea-3ffb-21a0a91f8b88
 # ╟─437ba6ce-f37d-11ea-1010-5f6a6e282f9b
+=======
+# ╠═437ba6ce-f37d-11ea-1010-5f6a6e282f9b
+>>>>>>> fff15bb95da6567f90015258133a2c068901fb34
 # ╟─ef88c388-f388-11ea-3828-ff4db4d1874e
 # ╟─ef26374a-f388-11ea-0b4e-67314a9a9094
 # ╟─6bdbcf4c-f321-11ea-0288-fb16ff1ec526
