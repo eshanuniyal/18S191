@@ -572,10 +572,8 @@ function memoized_least_energy(energies, i, j, memory)
 end
 
 # ╔═╡ 3e8b0868-f3bd-11ea-0c15-011bbd6ac051
-function recursive_memoized_seam(energies, starting_pixel)
+function recursive_memoized_seam(energies, starting_pixel, memory)
 	m, n = size(energies)  # image dimensions
-	memory = Dict((m, c) => energies[m, c] for c in 1:n) # location => least energy.
-		# pass this every time you call memoized_least_energy.
 
 	# allocating seam array
 	seam = zeros(Int, m)
@@ -624,10 +622,8 @@ Write a variation of `matrix_memoized_least_energy` and `matrix_memoized_seam` w
 end
 
 # ╔═╡ be7d40e2-f320-11ea-1b56-dff2a0a16e8d
-@inbounds function matrix_memoized_seam(energies, starting_pixel)
-	memory = zeros(size(energies)) # use this as storage -- intially it's all zeros
+@inbounds function matrix_memoized_seam(energies, starting_pixel, memory)
 	m, n = size(energies)  # image dimensions
-	memory[end, :] = @view energies[end, :]
 	# allocating seam array
 	seam = zeros(Int, m)
 	seam[1] = starting_pixel
@@ -676,12 +672,11 @@ function least_energy_matrix(energies)
 	# iterating over rows and columns
 	for i in m-1:-1:1, j in 1:n
 		# indices of column to the left and right (subject to boundary conditions)
-		l, r = max(1, c - 1), min(n, c + 1)
+		l, r = max(1, j - 1), min(n, j + 1)
 		# finding minimal energy and updating least_energies
-		least_energies[i, j] = energies[i, j] 
-			+ minimum(@view least_energies[i + 1, l:r])
+		least_energies[i, j] = energies[i, j] + 
+			minimum(@view least_energies[i + 1, l:r])
 	end
-	
 	return least_energies
 end
 
@@ -796,36 +791,14 @@ function my_recursive_memoized_shrink_n(img, n, imgs=[], show_lightning = true)
 	else
 		push!(imgs, img′)
 	end
-	shrink_n(img′, n-1, min_seam, imgs)
-end
-
-# ╔═╡ f6571d86-f388-11ea-0390-05592acb9195
-if shrink_greedy
-	greedy_carved = shrink_n(img, 200, greedy_seam)
-	md"Shrink by: $(@bind greedy_n Slider(1:200; show_value=true))"
-end
-
-# ╔═╡ f626b222-f388-11ea-0d94-1736759b5f52
-if shrink_greedy
-	greedy_carved[greedy_n]
-end
-
-# ╔═╡ d88bc272-f392-11ea-0efd-15e0e2b2cd4e
-if shrink_recursive
-	@time recursive_carved = shrink_n(img[1:15, 1:15], 8, recursive_seam)
-	md"Shrink by: $(@bind recursive_n Slider(1:3, show_value=true))"
-end
-
-# ╔═╡ e66ef06a-f392-11ea-30ab-7160e7723a17
-if shrink_recursive
-	recursive_carved[recursive_n]
+	my_recursive_memoized_shrink_n(img′, n-1, imgs)
 end
 
 # ╔═╡ 4e3ef866-f3c5-11ea-3fb0-27d1ca9a9a3f
 if shrink_dict
-	# ~10 seconds for 100 seams in a 100*100 image
-	dict_carved = shrink_n(img[1:2:200, 1:2:200], 100, recursive_memoized_seam)
-	md"Shrink by: $(@bind dict_n Slider(1:100, show_value=true))"
+	# ~60 seconds for 200 seams in full image
+	@time dict_carved = my_recursive_memoized_shrink_n(img, 200)
+	md"Shrink by: $(@bind dict_n Slider(1:200, show_value=true))"
 end
 
 # ╔═╡ 6e73b1da-f3c5-11ea-145f-6383effe8a89
@@ -858,9 +831,9 @@ end
 
 # ╔═╡ 50829af6-f3c5-11ea-04a8-0535edd3b0aa
 if shrink_matrix
-	# 8 seconds for 100 seams in a 100*100 image
-	matrix_carved = shrink_n(img[1:2:200, 1:2:200], 100, matrix_memoized_seam)
-	md"Shrink by: $(@bind matrix_n Slider(1:8, show_value=true))"
+	# ~20 seconds for 200 seams in full image
+	@time matrix_carved = my_matrix_memoized_shrink_n(img, 200)
+	md"Shrink by: $(@bind matrix_n Slider(1:200, show_value=true))"
 end
 
 # ╔═╡ 9e56ecfa-f3c5-11ea-2e90-3b1839d12038
@@ -892,7 +865,8 @@ end
 
 # ╔═╡ 51e28596-f3c5-11ea-2237-2b72bbfaa001
 if shrink_bottomup
-	bottomup_carved = shrink_n(img, 200, seam_from_precomputed_least_energy)
+	# ~4 seconds for 200 seams in full image
+	@time bottomup_carved = my_precomputed_least_energy_shrink_n(img, 200)
 	md"Shrink by: $(@bind bottomup_n Slider(1:200, show_value=true))"
 end
 
@@ -1184,7 +1158,7 @@ bigbreak
 # ╟─56a7f954-f374-11ea-0391-f79b75195f4d
 # ╠═b1d09bc8-f320-11ea-26bb-0101c9a204e2
 # ╠═3e8b0868-f3bd-11ea-0c15-011bbd6ac051
-# ╟─4e3bcf88-f3c5-11ea-3ada-2ff9213647b7
+# ╠═4e3bcf88-f3c5-11ea-3ada-2ff9213647b7
 # ╠═4e3ef866-f3c5-11ea-3fb0-27d1ca9a9a3f
 # ╟─6e73b1da-f3c5-11ea-145f-6383effe8a89
 # ╟─cf39fa2a-f374-11ea-0680-55817de1b837
@@ -1200,14 +1174,22 @@ bigbreak
 # ╟─92e19f22-f37b-11ea-25f7-e321337e375e
 # ╠═795eb2c4-f37b-11ea-01e1-1dbac3c80c13
 # ╟─51df0c98-f3c5-11ea-25b8-af41dc182bac
+# ╠═06ea8ae0-fbd9-11ea-3914-ed58d6aa0309
+# ╠═5fc5b298-fbd9-11ea-2373-8f9a484f87f0
+# ╠═da8b6172-fbd8-11ea-1b8f-e149506a0fe8
+# ╠═eb502bf0-fbd8-11ea-1366-db5200489e1f
 # ╠═51e28596-f3c5-11ea-2237-2b72bbfaa001
 # ╟─0a10acd8-f3c6-11ea-3e2f-7530a0af8c7f
 # ╟─946b69a0-f3a2-11ea-2670-819a5dafe891
 # ╟─0fbe2af6-f381-11ea-2f41-23cd1cf930d9
 # ╟─48089a00-f321-11ea-1479-e74ba71df067
 # ╟─6b4d6584-f3be-11ea-131d-e5bdefcc791b
-# ╠═41019e20-f9c3-11ea-188b-611506f54139
-# ╠═4e09093e-f9c1-11ea-3ffb-21a0a91f8b88
+# ╟─41019e20-f9c3-11ea-188b-611506f54139
+# ╟─4e09093e-f9c1-11ea-3ffb-21a0a91f8b88
+# ╟─dae54cb2-fb94-11ea-3914-c3ba32b4cb65
+# ╟─bf3210e0-fb8f-11ea-139e-4ba5ce5158ba
+# ╟─926fe094-fb8c-11ea-1027-03d332e6d7bf
+# ╟─a59a70a0-fb8a-11ea-0ee7-f191fc8a7047
 # ╟─437ba6ce-f37d-11ea-1010-5f6a6e282f9b
 # ╟─ef88c388-f388-11ea-3828-ff4db4d1874e
 # ╟─ef26374a-f388-11ea-0b4e-67314a9a9094
