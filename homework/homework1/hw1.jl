@@ -1374,7 +1374,7 @@ with_sobel_edge_detect(sobel_camera_image)
 # ╟─22f28dae-edf2-11ea-25b5-11c369ae1253
 # ╠═8c19fb72-ed6c-11ea-2728-3fa9219eddc4
 # ╠═c4761a7e-edf2-11ea-1e75-118e73dadbed
-# ╟─adfbe9b2-ed6c-11ea-09ac-675262f420df
+# ╠═adfbe9b2-ed6c-11ea-09ac-675262f420df
 # ╟─393667ca-edf2-11ea-09c5-c5d292d5e896
 # ╠═9f1c6d04-ed6c-11ea-007b-75e7e780703d
 # ╠═70955aca-ed6e-11ea-2330-89b4d20b1795
