@@ -52,7 +52,7 @@ Feel free to ask questions!
 # ╔═╡ 33e43c7c-f381-11ea-3abc-c942327456b1
 # edit the code below to set your name and kerberos ID (i.e. email without @mit.edu)
 
-student = (name = "Jazzy Doe", kerberos_id = "jazz")
+student = (name = "Eshan Uniyal", kerberos_id = "N/A")
 
 # you might need to wait until all other cells in this notebook have completed running. 
 # scroll around the page to see what's up
@@ -149,7 +149,7 @@ md"👉 Use `filter` to extract just the characters from our alphabet out of `me
 messy_sentence_1 = "#wow 2020 ¥500 (blingbling!)"
 
 # ╔═╡ 75694166-f998-11ea-0428-c96e1113e2a0
-cleaned_sentence_1 = missing
+cleaned_sentence_1 = filter(isinalphabet, messy_sentence_1)
 
 # ╔═╡ 05f0182c-f999-11ea-0a52-3d46c65a049e
 md"""
@@ -165,7 +165,7 @@ md"👉 Use the function `lowercase` to convert `messy_sentence_2` into a lower 
 messy_sentence_2 = "Awesome! 😍"
 
 # ╔═╡ d3a4820e-f998-11ea-2a5c-1f37e2a6dd0a
-cleaned_sentence_2 = missing
+cleaned_sentence_2 = filter(isinalphabet, lowercase(messy_sentence_2))
 
 # ╔═╡ aad659b8-f998-11ea-153e-3dae9514bfeb
 md"""
@@ -216,7 +216,7 @@ $(html"<br>")
 # ╔═╡ 4affa858-f92e-11ea-3ece-258897c37e51
 function clean(text)
 	# we turn everything to lowercase to keep the number of letters small
-	missing
+	return filter(isinalphabet, text |> unaccent |> lowercase)
 end
 
 # ╔═╡ e00d521a-f992-11ea-11e0-e9da8255b23b
@@ -260,7 +260,7 @@ $(html"<br>")
 
 # ╔═╡ 92bf9fd2-f9a5-11ea-25c7-5966e44db6c6
 unused_letters = let
-	['a', 'b']
+	getindex.(Ref(alphabet), findall(f -> f == 0.0, sample_freqs))
 end
 
 # ╔═╡ 01215e9a-f9a9-11ea-363b-67392741c8d4
@@ -328,13 +328,13 @@ end
 md"""👉 What is the frequency of the combination `"th"`?"""
 
 # ╔═╡ 1b4c0c28-f9ab-11ea-03a6-69f69f7f90ed
-th_frequency = missing
+th_frequency = sample_freq_matrix[20,8]
 
 # ╔═╡ 1f94e0a2-f9ab-11ea-1347-7dd906ebb09d
 md"""👉 What about `"ht"`?"""
 
 # ╔═╡ 41b2df7c-f931-11ea-112e-ede3b16f357a
-ht_frequency = missing
+ht_frequency = sample_freq_matrix[8, 20]
 
 # ╔═╡ 1dd1e2f4-f930-11ea-312c-5ff9e109c7f6
 md"""
@@ -342,7 +342,7 @@ md"""
 """
 
 # ╔═╡ 65c92cac-f930-11ea-20b1-6b8f45b3f262
-double_letters = ['x', 'y']
+double_letters = [alphabet[i] for i in eachindex(alphabet) if sample_freq_matrix[i, i] ≠ 0]
 
 # ╔═╡ 4582ebf4-f930-11ea-03b2-bf4da1a8f8df
 md"""
@@ -350,7 +350,7 @@ md"""
 """
 
 # ╔═╡ 7898b76a-f930-11ea-2b7e-8126ec2b8ffd
-most_likely_to_follow_w = 'x'
+most_likely_to_follow_w = alphabet[findmax(sample_freq_matrix[23, :]) |> last]
 
 # ╔═╡ 458cd100-f930-11ea-24b8-41a49f6596a0
 md"""
@@ -358,7 +358,7 @@ md"""
 """
 
 # ╔═╡ bc401bee-f931-11ea-09cc-c5efe2f11194
-most_likely_to_precede_w = 'x'
+most_likely_to_precede_w = alphabet[findmax(sample_freq_matrix[:, 23]) |> last]
 
 # ╔═╡ 45c20988-f930-11ea-1d12-b782d2c01c11
 md"""
@@ -367,7 +367,7 @@ md"""
 
 # ╔═╡ cc62929e-f9af-11ea-06b9-439ac08dcb52
 row_col_answer = md"""
-
+	The sum of any row or column is the probability of occurrence of the respective character. For instance, the sum of the 20th column (or, alternatively, the sum of the 20th row) gives the probability of occurrence of t, since this sum represents the probability that t will follow (or precede) any given letter.
 """
 
 # ╔═╡ 2f8dedfc-fb98-11ea-23d7-2159bdb6a299
@@ -1165,8 +1165,7 @@ bigbreak
 # ╟─aad659b8-f998-11ea-153e-3dae9514bfeb
 # ╠═d236b51e-f997-11ea-0c55-abb11eb35f4d
 # ╠═a56724b6-f9a0-11ea-18f2-991e0382eccf
-# ╟─24860970-fc48-11ea-0009-cddee695772c
-# ╟─734851c6-f92d-11ea-130d-bf2a69e89255
+# ╠═734851c6-f92d-11ea-130d-bf2a69e89255
 # ╟─8d3bc9ea-f9a1-11ea-1508-8da4b7674629
 # ╠═4affa858-f92e-11ea-3ece-258897c37e51
 # ╠═e00d521a-f992-11ea-11e0-e9da8255b23b
@@ -1209,7 +1208,7 @@ bigbreak
 # ╠═65c92cac-f930-11ea-20b1-6b8f45b3f262
 # ╟─671525cc-f930-11ea-0e71-df9d4aae1c05
 # ╟─4582ebf4-f930-11ea-03b2-bf4da1a8f8df
-# ╟─7898b76a-f930-11ea-2b7e-8126ec2b8ffd
+# ╠═7898b76a-f930-11ea-2b7e-8126ec2b8ffd
 # ╟─a5fbba46-f931-11ea-33e1-054be53d986c
 # ╟─458cd100-f930-11ea-24b8-41a49f6596a0
 # ╠═bc401bee-f931-11ea-09cc-c5efe2f11194

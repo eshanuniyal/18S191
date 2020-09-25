@@ -796,7 +796,7 @@ end
 
 # ╔═╡ 4e3ef866-f3c5-11ea-3fb0-27d1ca9a9a3f
 if shrink_dict
-	# ~60 seconds for 200 seams in full image
+	# ~20 seconds for 200 seams in full image
 	@time dict_carved = my_recursive_memoized_shrink_n(img, 200)
 	md"Shrink by: $(@bind dict_n Slider(1:200, show_value=true))"
 end
