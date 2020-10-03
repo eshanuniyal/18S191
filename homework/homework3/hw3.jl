@@ -452,7 +452,7 @@ The only question left is: How do we compare two matrices? When two matrices are
 
 # ╔═╡ 13c89272-f934-11ea-07fe-91b5d56dedf8
 function matrix_distance(A, B)
-	missing # do something with A .- B
+	return sum(abs.(A .- B))
 end
 
 # ╔═╡ 7d60f056-f931-11ea-39ae-5fa18a955a77
@@ -568,7 +568,7 @@ ngrams([1, 2, 3, 42], 2) == bigrams([1, 2, 3, 42])
 
 # ╔═╡ 7be98e04-fb6b-11ea-111d-51c48f39a4e9
 function ngrams(words, n)
-	missing
+	return map(i -> words[i:i+n-1], 1:length(words)-(n-1))
 end
 
 # ╔═╡ 052f822c-fb7b-11ea-382f-af4d6c2b4fdb
@@ -638,7 +638,13 @@ Dict(
 function word_counts(words::Vector)
 	counts = Dict()
 	
-	# your code here
+	for word in words
+		if word ∈ keys(counts)
+			counts[word] += 1
+		else
+			counts[word] = 1
+		end
+	end
 	
 	return counts
 end
@@ -652,7 +658,7 @@ How many times does `"Emma"` occur in the book?
 """
 
 # ╔═╡ 953363dc-fb84-11ea-1128-ebdfaf5160ee
-emma_count = missing
+emma_count = word_counts(emma_words)["Emma"]
 
 # ╔═╡ 294b6f50-fb84-11ea-1382-03e9ab029a2d
 md"""
@@ -678,11 +684,20 @@ If the same ngram occurs multiple times (e.g. "said Emma laughing"), then the la
 👉 Write the function `completions_cache`, which takes an array of ngrams (i.e. an array of arrays of words, like the result of your `ngram` function), and returns a dictionary like described above.
 """
 
+# ╔═╡ 6f175a7c-ffd9-11ea-3ef5-7971470a40ff
+
+
 # ╔═╡ b726f824-fb5e-11ea-328e-03a30544037f
 function completions_cache(grams)
 	cache = Dict()
 	
-	# your code here
+	for gram in grams
+		if gram[1:end-1] in keys(cache)
+			push!(cache[gram[1:end-1]], gram[end])
+		else
+			cache[gram[1:end-1]] = [gram[end]]
+		end
+	end
 	
 	cache
 end
@@ -735,7 +750,7 @@ function ngrams_circular(words, n)
 end
 
 # ╔═╡ abe2b862-fb69-11ea-08d9-ebd4ba3437d5
-completions_cache(ngrams_circular(forest_words, 3))
+@time completions_cache(ngrams_circular(forest_words, 3))
 
 # ╔═╡ 4b27a89a-fb8d-11ea-010b-671eba69364e
 """
@@ -787,9 +802,6 @@ md"""
 Uncomment the cell below to generate some Jane Austen text:
 """
 
-# ╔═╡ 49b69dc2-fb8f-11ea-39af-030b5c5053c3
-# generate(emma, 100; n=4) |> Quote
-
 # ╔═╡ cc07f576-fbf3-11ea-2c6f-0be63b9356fc
 if student.name == "Jazzy Doe"
 	md"""
@@ -838,6 +850,9 @@ generate(
 	n=generate_sample_n_words, 
 	use_words=true
 ) |> Quote
+
+# ╔═╡ 49b69dc2-fb8f-11ea-39af-030b5c5053c3
+generate(emma, 100; n=6) |> Quote
 
 # ╔═╡ ddef9c94-fb96-11ea-1f17-f173a4ff4d89
 function compimg(img, labels=[c*d for c in replace(alphabet, ' ' => "_"), d in replace(alphabet, ' ' => "_")])
@@ -1165,6 +1180,7 @@ bigbreak
 # ╟─aad659b8-f998-11ea-153e-3dae9514bfeb
 # ╠═d236b51e-f997-11ea-0c55-abb11eb35f4d
 # ╠═a56724b6-f9a0-11ea-18f2-991e0382eccf
+# ╠═24860970-fc48-11ea-0009-cddee695772c
 # ╠═734851c6-f92d-11ea-130d-bf2a69e89255
 # ╟─8d3bc9ea-f9a1-11ea-1508-8da4b7674629
 # ╠═4affa858-f92e-11ea-3ece-258897c37e51
@@ -1265,6 +1281,7 @@ bigbreak
 # ╟─808abf6e-fb84-11ea-0785-2fc3f1c4a09f
 # ╠═953363dc-fb84-11ea-1128-ebdfaf5160ee
 # ╟─294b6f50-fb84-11ea-1382-03e9ab029a2d
+# ╠═6f175a7c-ffd9-11ea-3ef5-7971470a40ff
 # ╠═b726f824-fb5e-11ea-328e-03a30544037f
 # ╠═18355314-fb86-11ea-0738-3544e2e3e816
 # ╠═abe2b862-fb69-11ea-08d9-ebd4ba3437d5

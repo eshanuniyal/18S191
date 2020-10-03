@@ -559,7 +559,7 @@ You are expected to read and understand the [documentation on dictionaries](http
 """
 
 # ╔═╡ b1d09bc8-f320-11ea-26bb-0101c9a204e2
-function memoized_least_energy(energies, i, j, memory)
+@inbounds function memoized_least_energy(energies, i, j, memory)
 	# base case: energy already known
 	(i, j) in keys(memory) && return memory[(i, j)]
 
@@ -661,7 +661,7 @@ Now it's easy to see that the above algorithm is equivalent to one that populate
 """
 
 # ╔═╡ ff055726-f320-11ea-32f6-2bf38d7dd310
-function least_energy_matrix(energies)
+@inbounds function least_energy_matrix(energies)
 	m, n = size(energies)  # matrix dimensions
 	
 	# creating least_energies matrix
@@ -688,7 +688,7 @@ md"""
 """
 
 # ╔═╡ 795eb2c4-f37b-11ea-01e1-1dbac3c80c13
-function seam_from_precomputed_least_energy(energies, starting_pixel::Int)
+@inbounds function seam_from_precomputed_least_energy(energies, starting_pixel::Int)
 	m, n = size(energies) # matrix dimensions
 
 	# allocating seam array
@@ -709,12 +709,6 @@ end
 
 # ╔═╡ 51df0c98-f3c5-11ea-25b8-af41dc182bac
 md"Compute shrunk image: $(@bind shrink_bottomup CheckBox())"
-
-# ╔═╡ 06ea8ae0-fbd9-11ea-3914-ed58d6aa0309
-@benchmark sum([p.r for p in img])
-
-# ╔═╡ 5fc5b298-fbd9-11ea-2373-8f9a484f87f0
-@benchmark sum(p.r for p in img)
 
 # ╔═╡ da8b6172-fbd8-11ea-1b8f-e149506a0fe8
 convert(Float64, reduce(+, img).r)
@@ -1185,8 +1179,6 @@ bigbreak
 # ╟─92e19f22-f37b-11ea-25f7-e321337e375e
 # ╠═795eb2c4-f37b-11ea-01e1-1dbac3c80c13
 # ╟─51df0c98-f3c5-11ea-25b8-af41dc182bac
-# ╠═06ea8ae0-fbd9-11ea-3914-ed58d6aa0309
-# ╠═5fc5b298-fbd9-11ea-2373-8f9a484f87f0
 # ╠═da8b6172-fbd8-11ea-1b8f-e149506a0fe8
 # ╠═eb502bf0-fbd8-11ea-1366-db5200489e1f
 # ╠═51e28596-f3c5-11ea-2237-2b72bbfaa001
